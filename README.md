@@ -1,3 +1,5 @@
+本仓库是从 [meijieru](https://github.com/meijieru/crnn.pytorch) fork过来，对原仓库进行了修改，增加了制作训练数据集脚本，修改代码使其适应最新版本pytorch等库，以及其他修改。
+
 Convolutional Recurrent Neural Network
 ======================================
 
@@ -16,7 +18,7 @@ Put the downloaded model file ``crnn.pth`` into directory ``data/``. Then launch
 The demo reads an example image and recognizes its text content.
 
 Example image:
-![Example Image](./data/demo.png)
+![Example Image](./data/demo.jpg)
 
 Expected output:
     loading pretrained model from ./data/crnn.pth
