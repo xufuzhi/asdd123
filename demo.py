@@ -1,8 +1,8 @@
 import torch
-from torch.autograd import Variable
 import utils
 import dataset
 from PIL import Image
+import time
 
 import models.crnn as crnn
 
@@ -25,15 +25,22 @@ image = transformer(image)
 if torch.cuda.is_available():
     image = image.cuda()
 image = image.view(1, *image.size())
-image = Variable(image)
+# image = Variable(image)
 
 model.eval()
 preds = model(image)
 
+torch.cuda.synchronize()
+t1 = time.time()
+preds = model(image)
+torch.cuda.synchronize()
+t2 = time.time() - t1
+print('time: ', t2)
+
 _, preds = preds.max(2)
 preds = preds.transpose(1, 0).contiguous().view(-1)
 
-preds_size = Variable(torch.IntTensor([preds.size(0)]))
-raw_pred = converter.decode(preds.data, preds_size.data, raw=True)
-sim_pred = converter.decode(preds.data, preds_size.data, raw=False)
+preds_size = torch.IntTensor([preds.size(0)])
+raw_pred = converter.decode(preds, preds_size, raw=True)
+sim_pred = converter.decode(preds, preds_size, raw=False)
 print('%-20s => %-20s' % (raw_pred, sim_pred))
