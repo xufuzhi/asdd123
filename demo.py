@@ -33,7 +33,6 @@ image = image.view(1, *image.size())
 ############################## debug
 # image = image.repeat(1, 1, 1, 4)
 # image = (image > 0.6) / 1.0
-# aa = (image[0, ...].cpu().permute(1, 2, 0).numpy() > 0.3).astype(np.float32)
 aa = image[0, ...].cpu().permute(1, 2, 0).numpy()
 # cv.imshow('img', aa), cv.waitKeyEx(), cv.destroyAllWindows()
 
