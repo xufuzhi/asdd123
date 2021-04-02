@@ -9,7 +9,8 @@ import torch.optim as optim
 import torch.utils.data
 from torch.autograd import Variable
 import numpy as np
-from warpctc_pytorch import CTCLoss
+# from warpctc_pytorch import CTCLoss
+from torch.nn import CTCLoss
 import os
 import utils
 import dataset
@@ -17,8 +18,8 @@ import dataset
 import models.crnn as crnn
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--trainRoot', required=True, help='path to dataset')
-parser.add_argument('--valRoot', required=True, help='path to dataset')
+parser.add_argument('--trainroot', required=True, help='path to dataset')
+parser.add_argument('--valroot', required=True, help='path to dataset')
 parser.add_argument('--workers', type=int, help='number of data loading workers', default=2)
 parser.add_argument('--batchSize', type=int, default=64, help='input batch size')
 parser.add_argument('--imgH', type=int, default=32, help='the height of the input image to network')
@@ -29,12 +30,12 @@ parser.add_argument('--nepoch', type=int, default=25, help='number of epochs to 
 parser.add_argument('--cuda', action='store_true', help='enables cuda')
 parser.add_argument('--ngpu', type=int, default=1, help='number of GPUs to use')
 parser.add_argument('--pretrained', default='', help="path to pretrained model (to continue training)")
-parser.add_argument('--alphabet', type=str, default='0123456789abcdefghijklmnopqrstuvwxyz')
-parser.add_argument('--expr_dir', default='expr', help='Where to store samples and models')
+parser.add_argument('--alphabet', type=str, default='0123456789abcdefghijklmnopqrstuvwxyz-,\'\\(/!.$#:) @&%?=[];+')
+parser.add_argument('--expr_dir', default='data', help='Where to store samples and models')
 parser.add_argument('--displayInterval', type=int, default=500, help='Interval to be displayed')
 parser.add_argument('--n_test_disp', type=int, default=10, help='Number of samples to display when test')
-parser.add_argument('--valInterval', type=int, default=500, help='Interval to be displayed')
-parser.add_argument('--saveInterval', type=int, default=500, help='Interval to be displayed')
+parser.add_argument('--valInterval', type=int, default=5000, help='Interval to be displayed')
+parser.add_argument('--saveInterval', type=int, default=20000, help='Interval to be displayed')
 parser.add_argument('--lr', type=float, default=0.01, help='learning rate for Critic, not used by adadealta')
 parser.add_argument('--beta1', type=float, default=0.5, help='beta1 for adam. default=0.5')
 parser.add_argument('--adam', action='store_true', help='Whether to use adam (default is rmsprop)')
@@ -78,7 +79,7 @@ converter = utils.strLabelConverter(opt.alphabet)
 criterion = CTCLoss()
 
 
-# custom weights initialization called on crnn
+# custom weights initialization called on net_crnn
 def weights_init(m):
     classname = m.__class__.__name__
     if classname.find('Conv') != -1:
@@ -88,20 +89,20 @@ def weights_init(m):
         m.bias.data.fill_(0)
 
 
-crnn = crnn.CRNN(opt.imgH, nc, nclass, opt.nh)
-crnn.apply(weights_init)
+net_crnn = crnn.CRNN(opt.imgH, nc, nclass, opt.nh)
+net_crnn.apply(weights_init)
 if opt.pretrained != '':
     print('loading pretrained model from %s' % opt.pretrained)
-    crnn.load_state_dict(torch.load(opt.pretrained))
-print(crnn)
+    net_crnn.load_state_dict(torch.load(opt.pretrained))
+print(net_crnn)
 
 image = torch.FloatTensor(opt.batchSize, 3, opt.imgH, opt.imgH)
 text = torch.IntTensor(opt.batchSize * 5)
 length = torch.IntTensor(opt.batchSize)
 
 if opt.cuda:
-    crnn.cuda()
-    crnn = torch.nn.DataParallel(crnn, device_ids=range(opt.ngpu))
+    net_crnn.cuda()
+    # net_crnn = torch.nn.DataParallel(net_crnn, device_ids=range(opt.ngpu))
     image = image.cuda()
     criterion = criterion.cuda()
 
@@ -114,18 +115,18 @@ loss_avg = utils.averager()
 
 # setup optimizer
 if opt.adam:
-    optimizer = optim.Adam(crnn.parameters(), lr=opt.lr,
+    optimizer = optim.Adam(net_crnn.parameters(), lr=opt.lr,
                            betas=(opt.beta1, 0.999))
 elif opt.adadelta:
-    optimizer = optim.Adadelta(crnn.parameters())
+    optimizer = optim.Adadelta(net_crnn.parameters())
 else:
-    optimizer = optim.RMSprop(crnn.parameters(), lr=opt.lr)
+    optimizer = optim.RMSprop(net_crnn.parameters(), lr=opt.lr)
 
 
 def val(net, dataset, criterion, max_iter=100):
     print('Start val')
 
-    for p in crnn.parameters():
+    for p in net_crnn.parameters():
         p.requires_grad = False
 
     net.eval()
@@ -133,7 +134,7 @@ def val(net, dataset, criterion, max_iter=100):
         dataset, shuffle=True, batch_size=opt.batchSize, num_workers=int(opt.workers))
     val_iter = iter(data_loader)
 
-    i = 0
+    # i = 0
     n_correct = 0
     loss_avg = utils.averager()
 
@@ -148,13 +149,13 @@ def val(net, dataset, criterion, max_iter=100):
         utils.loadData(text, t)
         utils.loadData(length, l)
 
-        preds = crnn(image)
+        preds = net_crnn(image)
         preds_size = Variable(torch.IntTensor([preds.size(0)] * batch_size))
         cost = criterion(preds, text, preds_size, length) / batch_size
         loss_avg.add(cost)
 
         _, preds = preds.max(2)
-        preds = preds.squeeze(2)
+        # preds = preds.squeeze(2)
         preds = preds.transpose(1, 0).contiguous().view(-1)
         sim_preds = converter.decode(preds.data, preds_size.data, raw=False)
         for pred, target in zip(sim_preds, cpu_texts):
@@ -178,36 +179,48 @@ def trainBatch(net, criterion, optimizer):
     utils.loadData(text, t)
     utils.loadData(length, l)
 
-    preds = crnn(image)
+    preds = net_crnn(image)
     preds_size = Variable(torch.IntTensor([preds.size(0)] * batch_size))
     cost = criterion(preds, text, preds_size, length) / batch_size
-    crnn.zero_grad()
+    net_crnn.zero_grad()
     cost.backward()
     optimizer.step()
     return cost
 
 
+total_iter = len(train_loader) * opt.nepoch
+iteration = 0
 for epoch in range(opt.nepoch):
     train_iter = iter(train_loader)
-    i = 0
-    while i < len(train_loader):
-        for p in crnn.parameters():
+    for _ in range(len(train_loader)):
+        for p in net_crnn.parameters():
             p.requires_grad = True
-        crnn.train()
+        net_crnn.train()
 
-        cost = trainBatch(crnn, criterion, optimizer)
+        cost = trainBatch(net_crnn, criterion, optimizer)
         loss_avg.add(cost)
-        i += 1
+        iteration += 1
 
-        if i % opt.displayInterval == 0:
+        if iteration % opt.displayInterval == 0:
             print('[%d/%d][%d/%d] Loss: %f' %
-                  (epoch, opt.nepoch, i, len(train_loader), loss_avg.val()))
+                  (epoch, opt.nepoch, iteration, len(train_loader), loss_avg.val()))
             loss_avg.reset()
 
-        if i % opt.valInterval == 0:
-            val(crnn, test_dataset, criterion)
+        if iteration % opt.valInterval == 0:
+            val(net_crnn, test_dataset, criterion)
 
         # do checkpointing
-        if i % opt.saveInterval == 0:
+        if iteration % opt.saveInterval == 0:
             torch.save(
-                crnn.state_dict(), '{0}/netCRNN_{1}_{2}.pth'.format(opt.expr_dir, epoch, i))
+                net_crnn.state_dict(), '{0}/netCRNN_{1}_{2}.pth'.format(opt.expr_dir, epoch, iteration))
+
+    # print('epoch: ', epoch)
+    # if epoch % 100 == 0:
+    #     print('epoch: [%d/%d] Loss: %f' % (epoch, opt.nepoch, loss_avg.val()))
+    #     loss_avg.reset()
+    #
+    # if epoch % 100 == 0:
+    #     val(net_crnn, test_dataset, criterion)
+
+
+torch.save(net_crnn.state_dict(), os.path.join(opt.expr_dir, 'netCRNN_last.pth'))

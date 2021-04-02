@@ -7,11 +7,14 @@ import time
 import models.crnn as crnn
 
 
-model_path = './data/crnn.pth'
-img_path = './data/demo.jpg'
-alphabet = '0123456789abcdefghijklmnopqrstuvwxyz'
+model_path = './weights/netCRNN_last.pth'
+# model_path = './data/crnn.pth'
+img_path = './data/aaa/word_1396.png'
+# alphabet = '0123456789abcdefghijklmnopqrstuvwxyz'
+alphabet = '0123456789abcdefghijklmnopqrstuvwxyz-,\'\\(/!.$#:) @&%?=[];+'
 
-model = crnn.CRNN(32, 1, 37, 256)
+# model = crnn.CRNN(32, 1, 37, 256)
+model = crnn.CRNN(32, 1, 59, 256)
 if torch.cuda.is_available():
     model = model.cuda()
 print('loading pretrained model from %s' % model_path)
@@ -34,8 +37,7 @@ torch.cuda.synchronize()
 t1 = time.time()
 preds = model(image)
 torch.cuda.synchronize()
-t2 = time.time() - t1
-print('time: ', t2)
+print('time: ', time.time() - t1)
 
 _, preds = preds.max(2)
 preds = preds.transpose(1, 0).contiguous().view(-1)

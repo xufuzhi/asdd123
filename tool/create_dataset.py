@@ -90,36 +90,50 @@ def read_text(path):
 
 if __name__ == '__main__':
 
-    outputPath = '../data/lmdb'     # lmdb 输出目录
+    outputPath = '../data/lol_lmdb'     # lmdb 输出目录
     # 训练图片路径，标签是txt格式，名字跟图片名字要一致，如123.jpg对应标签需要是123.txt
-    path = '../data/*.jpg'
+    # path = '../data/*.jpg'
+    path = '/home/xfz/temps/OCRdatasets/LOLtext/gt.txt'    # 标签文件
 
-    imagePathList = glob.glob(path)
-    print('一共%d张图片'%(len(imagePathList)))
-    imgLabelLists = []
-    for p in imagePathList:
-        try:
-            imgLabelLists.append((p, read_text(p.replace('.jpg', '.txt'))))
-        except:
-            continue
+    rootpath = path.rsplit(os.path.sep, 1)[0]
+    imgPaths= []
+    labellist = []
+    with open(path, encoding='utf-8-sig') as f:
+        for line in f:
+            imgname, label = line.split(',', 1)
+            imgPaths.append(os.path.join(rootpath, 'images', imgname.strip()))
+            labellist.append(label.strip().replace('"', ''))
 
-    # imgLabelList = [ (p,read_text(p.replace('.jpg','.txt'))) for p in imagePathList]
-    ##sort by lebelList
-    imgLabelList = sorted(imgLabelLists, key=lambda x: len(x[1]))
-    imgPaths = [p[0] for p in imgLabelList]
-    txtLists = [p[1] for p in imgLabelList]
 
-    createDataset(outputPath, imgPaths, txtLists, lexiconList=None, checkValid=True)
+
+
+    # imagePathList = glob.glob(path)
+    # print('一共%d张图片'%(len(imagePathList)))
+    # imgLabelLists = []
+    # for p in imagePathList:
+    #     try:
+    #         imgLabelLists.append((p, read_text(p.replace('.jpg', '.txt'))))
+    #     except:
+    #         continue
+    #
+    # # imgLabelList = [ (p,read_text(p.replace('.jpg','.txt'))) for p in imagePathList]
+    # ##sort by lebelList
+    # imgLabelList = sorted(imgLabelLists, key=lambda x: len(x[1]))
+    # imgPaths = [p[0] for p in imgLabelList]
+    # txtLists = [p[1] for p in imgLabelList]
+
+    createDataset(outputPath, imgPaths, labellist, lexiconList=None, checkValid=True)
 
     # ### 读取LMDB数据集中图片并显示出来，验证一下数据集是否制作成功
     with lmdb.open(outputPath) as env:
         txn = env.begin()
         for key, value in txn.cursor():
-            print (key, value)
+            # print (key, value)
             imageBuf = np.fromstring(value, dtype=np.uint8)
             img = cv2.imdecode(imageBuf, cv2.IMREAD_GRAYSCALE)
             if img is not None:
-                cv2.imshow('image', img)
-                cv2.waitKey()
+                pass
+                # cv2.imshow('image', img)
+                # cv2.waitKey()
             else:
-                print('This is a label: {}'.format(value))
+                print('key: %s    label: %s' % (key, value))
