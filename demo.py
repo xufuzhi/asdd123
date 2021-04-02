@@ -9,7 +9,7 @@ import models.crnn as crnn
 
 model_path = './weights/netCRNN_last.pth'
 # model_path = './data/crnn.pth'
-img_path = './data/aaa/word_1396.png'
+img_path = './data/aaa/word_1287.jpg'
 # alphabet = '0123456789abcdefghijklmnopqrstuvwxyz'
 alphabet = '0123456789abcdefghijklmnopqrstuvwxyz-,\'\\(/!.$#:) @&%?=[];+'
 
