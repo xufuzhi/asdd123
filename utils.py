@@ -7,7 +7,7 @@ from torch.autograd import Variable
 import collections
 
 
-class strLabelConverter(object):
+class StrLabelConverter(object):
     """Convert between str and label.
 
     NOTE:
@@ -124,9 +124,9 @@ def oneHot(v, v_length, nc):
 
 
 def loadData(v, data):
-    # v.data.resize_(data.shape).copy_(data)
     with torch.no_grad():
-        v.resize_(data.shape).copy_(data)
+        v.resize_(data.shape)
+        v[...] = data[...]
 
 
 def prettyPrint(v):

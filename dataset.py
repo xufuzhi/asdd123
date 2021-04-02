@@ -13,7 +13,7 @@ from PIL import Image
 import numpy as np
 
 
-class lmdbDataset(Dataset):
+class Dataset_lmdb(Dataset):
 
     def __init__(self, root=None, transform=None, target_transform=None):
         self.env = lmdb.open(
@@ -58,7 +58,6 @@ class lmdbDataset(Dataset):
                 img = self.transform(img)
 
             label_key = 'label-%09d' % index
-            # label = str(txn.get(label_key.encode()))
             label = txn.get(label_key.encode()).decode()
 
             if self.target_transform is not None:
@@ -67,7 +66,7 @@ class lmdbDataset(Dataset):
         return (img, label)
 
 
-class resizeNormalize(object):
+class ResizeNormalize(object):
 
     def __init__(self, size, interpolation=Image.BILINEAR):
         self.size = size
@@ -130,7 +129,7 @@ class AlignCollate(object):
             imgW = int(np.floor(max_ratio * imgH))
             imgW = max(imgH * self.min_ratio, imgW)  # assure imgH >= imgW
 
-        transform = resizeNormalize((imgW, imgH))
+        transform = ResizeNormalize((imgW, imgH))
         images = [transform(image) for image in images]
         images = torch.cat([t.unsqueeze(0) for t in images], 0)
 

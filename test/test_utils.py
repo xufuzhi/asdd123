@@ -29,7 +29,7 @@ def equal(a, b):
 class utilsTestCase(unittest.TestCase):
 
     def checkConverter(self):
-        encoder = utils.strLabelConverter('abcdefghijklmnopqrstuvwxyz')
+        encoder = utils.StrLabelConverter('abcdefghijklmnopqrstuvwxyz')
 
         # Encode
         # trivial mode

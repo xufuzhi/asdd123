@@ -4,7 +4,6 @@ import torch
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
 import torch.utils.data
-from torch.autograd import Variable
 import numpy as np
 from torch.nn import CTCLoss
 import os
@@ -53,24 +52,24 @@ def val(net, dataset, criterion, max_iter=100):
         cpu_images, cpu_texts = data
         batch_size = cpu_images.size(0)
         utils.loadData(image, cpu_images)
-        t, l = converter.encode(cpu_texts)
+        t, l = str2label.encode(cpu_texts)
         utils.loadData(text, t)
         utils.loadData(length, l)
 
         preds = net_crnn(image)
-        preds_size = Variable(torch.IntTensor([preds.size(0)] * batch_size))
+        preds_size = torch.IntTensor([preds.size(0)] * batch_size)
         cost = criterion(preds, text, preds_size, length) / batch_size
         loss_avg.add(cost)
 
         _, preds = preds.max(2)
         # preds = preds.squeeze(2)
         preds = preds.transpose(1, 0).contiguous().view(-1)
-        sim_preds = converter.decode(preds.data, preds_size.data, raw=False)
+        sim_preds = str2label.decode(preds.data, preds_size.data, raw=False)
         for pred, target in zip(sim_preds, cpu_texts):
             if pred == target.lower():
                 n_correct += 1
 
-    raw_preds = converter.decode(preds.data, preds_size.data, raw=True)[:opt.n_test_disp]
+    raw_preds = str2label.decode(preds.data, preds_size.data, raw=True)[:opt.n_test_disp]
     for raw_pred, pred, gt in zip(raw_preds, sim_preds, cpu_texts):
         print('%-20s => %-20s, gt: %-20s' % (raw_pred, pred, gt))
 
@@ -83,13 +82,13 @@ def trainBatch(net, criterion, optimizer):
     cpu_images, cpu_texts = data
     batch_size = cpu_images.size(0)
     utils.loadData(image, cpu_images)
-    t, l = converter.encode(cpu_texts)
+    t, l = str2label.encode(cpu_texts)
     utils.loadData(text, t)
     utils.loadData(length, l)
 
     net_crnn.zero_grad()
     preds = net_crnn(image)
-    preds_size = Variable(torch.IntTensor([preds.size(0)] * batch_size))
+    preds_size = torch.IntTensor([preds.size(0)] * batch_size)
     cost = criterion(preds, text, preds_size, length) / batch_size
     # net_crnn.zero_grad()
     cost.backward()
@@ -134,7 +133,7 @@ if __name__ == '__main__':
     if torch.cuda.is_available() and not opt.cuda:
         print("WARNING: You have a CUDA device, so you should probably run with --cuda")
 
-    dataset_train = dataset.lmdbDataset(root=opt.trainroot)
+    dataset_train = dataset.Dataset_lmdb(root=opt.trainroot)
     assert dataset_train
     if not opt.random_sample:
         sampler = dataset.RandomSequentialSampler(dataset_train, opt.batchSize)
@@ -145,33 +144,18 @@ if __name__ == '__main__':
         shuffle=True, sampler=sampler,
         num_workers=int(opt.workers),
         collate_fn=dataset.AlignCollate(imgH=opt.imgH, imgW=opt.imgW, keep_ratio=opt.keep_ratio))
-    dataset_val = dataset.lmdbDataset(root=opt.valroot, transform=dataset.resizeNormalize((100, 32)))
+    dataset_val = dataset.Dataset_lmdb(root=opt.valroot, transform=dataset.ResizeNormalize((100, 32)))
 
-    nclass = len(opt.alphabet) + 1
-    nc = 1
-
-    converter = utils.strLabelConverter(opt.alphabet)
-    criterion = CTCLoss()
     # 构建网络
-    net_crnn = crnn.CRNN(opt.imgH, nc, nclass, opt.nh)
+    net_crnn = crnn.CRNN(opt.imgH, 1, len(opt.alphabet) + 1, opt.nh)
     net_crnn.apply(weights_init)
     if opt.pretrained != '':
         print('loading pretrained model from %s' % opt.pretrained)
         net_crnn.load_state_dict(torch.load(opt.pretrained))
     print(net_crnn)
 
-    image = torch.FloatTensor(opt.batchSize, 3, opt.imgH, opt.imgH)
-    text = torch.IntTensor(opt.batchSize * 5)
-    length = torch.IntTensor(opt.batchSize)
-
-    if opt.cuda:
-        net_crnn.cuda()
-        # net_crnn = torch.nn.DataParallel(net_crnn, device_ids=range(opt.ngpu))
-        image = image.cuda()
-        criterion = criterion.cuda()
-
-    # loss Averager
-    loss_avg = utils.Averager()
+    str2label = utils.StrLabelConverter(opt.alphabet)
+    ctc_loss = CTCLoss()
     # setup optimizer
     if opt.adam:
         optimizer = optim.Adam(net_crnn.parameters(), lr=opt.lr,
@@ -181,6 +165,18 @@ if __name__ == '__main__':
     else:
         optimizer = optim.RMSprop(net_crnn.parameters(), lr=opt.lr)
 
+    image = torch.empty((opt.batchSize, 3, opt.imgH, opt.imgH), dtype=torch.float32)
+    text = torch.empty(opt.batchSize * 5, dtype=torch.int32)
+    length = torch.empty(opt.batchSize, dtype=torch.int32)
+
+    if opt.cuda:
+        net_crnn.cuda()
+        # net_crnn = torch.nn.DataParallel(net_crnn, device_ids=range(opt.ngpu))
+        image = image.cuda()
+        ctc_loss = ctc_loss.cuda()
+
+    # loss Averager
+    loss_avg = utils.Averager()
     # ### begin training
     total_iter = len(train_loader) * opt.nepoch
     iteration = 0
@@ -191,7 +187,7 @@ if __name__ == '__main__':
                 p.requires_grad = True
             net_crnn.train()
 
-            cost = trainBatch(net_crnn, criterion, optimizer)
+            cost = trainBatch(net_crnn, ctc_loss, optimizer)
             loss_avg.add(cost)
             iteration += 1
 
@@ -202,7 +198,7 @@ if __name__ == '__main__':
                 loss_avg.reset()
 
             if iteration % opt.valInterval == 0:
-                val(net_crnn, dataset_val, criterion)
+                val(net_crnn, dataset_val, ctc_loss)
 
             # do checkpointing
             if iteration % opt.saveInterval == 0:

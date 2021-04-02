@@ -10,7 +10,7 @@ import models.crnn as crnn
 
 model_path = './weights/netCRNN_last.pth'
 # model_path = './data/crnn.pth'
-img_path = './data/2.jpg'
+img_path = './data/3.jpg'
 # alphabet = '0123456789abcdefghijklmnopqrstuvwxyz'
 alphabet = '0123456789abcdefghijklmnopqrstuvwxyz-,\'\\(/!.$#:) @&%?=[];+'
 
@@ -21,9 +21,9 @@ if torch.cuda.is_available():
 print('loading pretrained model from %s' % model_path)
 model.load_state_dict(torch.load(model_path))
 
-converter = utils.strLabelConverter(alphabet)
+converter = utils.StrLabelConverter(alphabet)
 
-transformer = dataset.resizeNormalize((100, 32))
+transformer = dataset.ResizeNormalize((100, 32))
 image = Image.open(img_path).convert('L')
 image = transformer(image)
 if torch.cuda.is_available():
