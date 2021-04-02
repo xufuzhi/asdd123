@@ -2,6 +2,7 @@ import torch
 import utils
 import dataset
 from PIL import Image
+import cv2 as cv
 import time
 
 import models.crnn as crnn
@@ -9,7 +10,7 @@ import models.crnn as crnn
 
 model_path = './weights/netCRNN_last.pth'
 # model_path = './data/crnn.pth'
-img_path = './data/aaa/word_1287.jpg'
+img_path = './data/2.jpg'
 # alphabet = '0123456789abcdefghijklmnopqrstuvwxyz'
 alphabet = '0123456789abcdefghijklmnopqrstuvwxyz-,\'\\(/!.$#:) @&%?=[];+'
 
@@ -28,7 +29,15 @@ image = transformer(image)
 if torch.cuda.is_available():
     image = image.cuda()
 image = image.view(1, *image.size())
-# image = Variable(image)
+
+############################## debug
+# image = image.repeat(1, 1, 1, 4)
+# image = (image > 0.6) / 1.0
+# aa = (image[0, ...].cpu().permute(1, 2, 0).numpy() > 0.3).astype(np.float32)
+aa = image[0, ...].cpu().permute(1, 2, 0).numpy()
+# cv.imshow('img', aa), cv.waitKeyEx(), cv.destroyAllWindows()
+
+#####################
 
 model.eval()
 preds = model(image)

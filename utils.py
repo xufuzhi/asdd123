@@ -89,22 +89,15 @@ class strLabelConverter(object):
             return texts
 
 
-class averager(object):
+class Averager(object):
     """Compute average for `torch.Variable` and `torch.Tensor`. """
 
     def __init__(self):
         self.reset()
 
     def add(self, v):
-        if isinstance(v, Variable):
-            count = v.data.numel()
-            v = v.data.sum()
-        elif isinstance(v, torch.Tensor):
-            count = v.numel()
-            v = v.sum()
-
-        self.n_count += count
-        self.sum += v
+        self.n_count += v.numel()
+        self.sum += v.sum()
 
     def reset(self):
         self.n_count = 0

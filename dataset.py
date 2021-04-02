@@ -81,7 +81,7 @@ class resizeNormalize(object):
         return img
 
 
-class randomSequentialSampler(sampler.Sampler):
+class RandomSequentialSampler(sampler.Sampler):
 
     def __init__(self, data_source, batch_size):
         self.num_samples = len(data_source)
@@ -107,7 +107,7 @@ class randomSequentialSampler(sampler.Sampler):
         return self.num_samples
 
 
-class alignCollate(object):
+class AlignCollate(object):
 
     def __init__(self, imgH=32, imgW=100, keep_ratio=False, min_ratio=1):
         self.imgH = imgH

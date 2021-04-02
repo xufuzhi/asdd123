@@ -76,12 +76,12 @@ class utilsTestCase(unittest.TestCase):
         assert target.equal(v_onehot)
 
     def checkAverager(self):
-        acc = utils.averager()
+        acc = utils.Averager()
         acc.add(Variable(torch.Tensor([1, 2])))
         acc.add(Variable(torch.Tensor([[5, 6]])))
         assert acc.val() == 3.5
 
-        acc = utils.averager()
+        acc = utils.Averager()
         acc.add(torch.Tensor([1, 2]))
         acc.add(torch.Tensor([[5, 6]]))
         assert acc.val() == 3.5

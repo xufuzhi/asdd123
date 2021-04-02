@@ -1,4 +1,5 @@
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class BidirectionalLSTM(nn.Module):
@@ -75,5 +76,8 @@ class CRNN(nn.Module):
 
         # rnn features
         output = self.rnn(conv)
+
+        # add log_softmax to converge output
+        output = F.log_softmax(output, dim=2)
 
         return output
