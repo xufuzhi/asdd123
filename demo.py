@@ -35,7 +35,7 @@ image = image.view(1, *image.size())
 # image = (image > 0.6) / 1.0
 aa = image[0, ...].cpu().permute(1, 2, 0).numpy()
 # cv.imshow('img', aa), cv.waitKeyEx(), cv.destroyAllWindows()
-
+print('image_size: ', image.shape)
 #####################
 
 model.eval()
