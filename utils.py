@@ -9,10 +9,8 @@ import collections
 
 class StrLabelConverter(object):
     """Convert between str and label.
-
     NOTE:
         Insert `blank` to the alphabet for CTC.
-
     Args:
         alphabet (str): set of the possible characters.
         ignore_case (bool, default=True): whether or not to ignore all of the case.
@@ -31,10 +29,8 @@ class StrLabelConverter(object):
 
     def encode(self, text):
         """Support batch or single str.
-
         Args:
             text (str or list of str): texts to convert.
-
         Returns:
             torch.IntTensor [length_0 + length_1 + ... length_{n - 1}]: encoded texts.
             torch.IntTensor [n]: length of each text.
@@ -49,18 +45,15 @@ class StrLabelConverter(object):
             length = [len(s) for s in text]
             text = ''.join(text)
             text, _ = self.encode(text)
-        return (torch.IntTensor(text), torch.IntTensor(length))
+        return torch.IntTensor(text), torch.IntTensor(length)
 
     def decode(self, t, length, raw=False):
         """Decode encoded texts back into strs.
-
         Args:
             torch.IntTensor [length_0 + length_1 + ... length_{n - 1}]: encoded texts.
             torch.IntTensor [n]: length of each text.
-
         Raises:
             AssertionError: when the texts and its length does not match.
-
         Returns:
             text (str or list of str): texts to convert.
         """
