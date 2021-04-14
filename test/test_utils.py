@@ -8,7 +8,8 @@ from torch.autograd import Variable
 import collections
 origin_path = sys.path
 sys.path.append("..")
-import utils
+from utils import utils
+
 sys.path = origin_path
 
 

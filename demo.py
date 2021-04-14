@@ -1,8 +1,7 @@
 import torch
 import utils
-import dataset
+from utils import dataset
 from PIL import Image
-import cv2 as cv
 import time
 
 import models.crnn as crnn

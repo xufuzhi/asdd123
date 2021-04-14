@@ -1,16 +1,16 @@
 import argparse
-import random
+import time
+
 import torch
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
 import torch.utils.data
-import numpy as np
 from torch.nn import CTCLoss
 import os
-import utils
-import dataset
+from utils import utils, dataset
 
 import models.crnn as crnn
+import eval
 
 
 cudnn.benchmark = True
@@ -30,55 +30,7 @@ def weights_init(m):
         m.bias.data.fill_(0)
 
 
-def val(net, dataset, criterion, max_iter=100):
-    print('Start val')
-
-    for p in net_crnn.parameters():
-        p.requires_grad = False
-
-    net.eval()
-    data_loader = torch.utils.data.DataLoader(
-        dataset, shuffle=True, batch_size=opt.batchSize, num_workers=int(opt.workers))
-    val_iter = iter(data_loader)
-
-    # i = 0
-    n_correct = 0
-    loss_avg = utils.Averager()
-
-    max_iter = min(max_iter, len(data_loader))
-    for i in range(max_iter):
-        data = val_iter.next()
-        i += 1
-        cpu_images, cpu_texts = data
-        batch_size = cpu_images.size(0)
-        utils.loadData(image, cpu_images)
-        t, l = str2label.encode(cpu_texts)
-        utils.loadData(text, t)
-        utils.loadData(length, l)
-
-        preds = net_crnn(image)
-        preds_size = torch.IntTensor([preds.size(0)] * batch_size)
-        cost = criterion(preds, text, preds_size, length) / batch_size
-        loss_avg.add(cost)
-
-        _, preds = preds.max(2)
-        # preds = preds.squeeze(2)
-        preds = preds.transpose(1, 0).contiguous().view(-1)
-        sim_preds = str2label.decode(preds.data, preds_size.data, raw=False)
-        for pred, target in zip(sim_preds, cpu_texts):
-            if pred == target.lower():
-                n_correct += 1
-
-    raw_preds = str2label.decode(preds.data, preds_size.data, raw=True)[:opt.n_test_disp]
-    for raw_pred, pred, gt in zip(raw_preds, sim_preds, cpu_texts):
-        print('%-20s => %-20s, gt: %-20s' % (raw_pred, pred, gt))
-
-    accuracy = n_correct / float(max_iter * opt.batchSize)
-    print('Test loss: %f, accuray: %f' % (loss_avg.val(), accuracy))
-
-
-def trainBatch(net, criterion, optimizer):
-    data = train_iter.next()
+def trainBatch(net, criterion, optimizer, data, iter_num):
     cpu_images, cpu_texts = data
     batch_size = cpu_images.size(0)
     utils.loadData(image, cpu_images)
@@ -86,13 +38,30 @@ def trainBatch(net, criterion, optimizer):
     utils.loadData(text, t)
     utils.loadData(length, l)
 
-    net_crnn.zero_grad()
-    preds = net_crnn(image)
-    preds_size = torch.IntTensor([preds.size(0)] * batch_size)
-    cost = criterion(preds, text, preds_size, length) / batch_size
-    # net_crnn.zero_grad()
+    preds = net(image)
+    preds_size = torch.LongTensor([preds.size(0)] * batch_size)
+    cost = criterion(preds, text, preds_size, length) #/ batch_size
+    optimizer.zero_grad()
     cost.backward()
     optimizer.step()
+
+    # ### 计算这个批次精度
+    if iter_num % opt.displayInterval == 0:
+        aa = torch.ones(1).detach
+        preds_v = preds.detach()
+        preds_size_v = preds_size.detach()
+
+        _, preds_v = preds_v.max(2)
+        # preds = preds.squeeze(2)
+        preds_v = preds_v.transpose(1, 0).contiguous().view(-1)
+        sim_preds = str2label.decode(preds_v.data, preds_size_v.data, raw=False)
+        n_correct = 0
+        for pred, target in zip(sim_preds, cpu_texts):
+            if pred == target.lower():
+                n_correct += 1
+        accuracy = n_correct / float(opt.batchSize)
+        print(f'acc: {accuracy}')
+
     return cost
 
 
@@ -101,7 +70,7 @@ if __name__ == '__main__':
     parser.add_argument('--trainroot', required=True, help='path to dataset')
     parser.add_argument('--valroot', required=True, help='path to dataset')
     parser.add_argument('--workers', type=int, help='number of data loading workers', default=0)
-    parser.add_argument('--batchSize', type=int, default=64, help='input batch size')
+    parser.add_argument('--batchSize', type=int, default=256, help='input batch size')
     parser.add_argument('--imgH', type=int, default=32, help='the height of the input image to network')
     parser.add_argument('--imgW', type=int, default=100, help='the width of the input image to network')
     parser.add_argument('--nh', type=int, default=256, help='size of the lstm hidden state')
@@ -109,14 +78,14 @@ if __name__ == '__main__':
     # TODO(meijieru): epoch -> iter
     parser.add_argument('--cuda', action='store_true', help='enables cuda')
     parser.add_argument('--ngpu', type=int, default=1, help='number of GPUs to use')
-    parser.add_argument('--pretrained', default='', help="path to pretrained model (to continue training)")
-    parser.add_argument('--alphabet', type=str, default='0123456789abcdefghijklmnopqrstuvwxyz-,\'\\(/!.$#:) @&%?=[];+你')
+    parser.add_argument('--pretrained', default='./weights/chinese/netCRNN_lastest.pth', help="path to pretrained model (to continue training)")
+    parser.add_argument('--alphabet', type=str, default='./data/en.alphabet')
     parser.add_argument('--expr_dir', default='weights/chinese', help='Where to store samples and models')
     parser.add_argument('--displayInterval', type=int, default=500, help='Interval to be displayed')
-    parser.add_argument('--n_test_disp', type=int, default=20, help='Number of samples to display when test')
-    parser.add_argument('--valInterval', type=int, default=50000, help='Interval to be verifyed')
-    parser.add_argument('--saveInterval', type=int, default=50000, help='Interval to be saved')
-    parser.add_argument('--lr', type=float, default=0.0001, help='learning rate for Critic, not used by adadealta')
+    parser.add_argument('--n_test_disp', type=int, default=50, help='Number of samples to display when test')
+    parser.add_argument('--valInterval', type=int, default=5000, help='Interval to be verifyed')
+    parser.add_argument('--saveInterval', type=int, default=20000, help='Interval to be saved')
+    parser.add_argument('--lr', type=float, default=0.0000002, help='learning rate for Critic, not used by adadealta')
     parser.add_argument('--beta1', type=float, default=0.5, help='beta1 for adam. default=0.5')
     parser.add_argument('--adam', action='store_true', help='Whether to use adam (default is rmsprop)')
     parser.add_argument('--adadelta', action='store_true', help='Whether to use adadelta (default is rmsprop)')
@@ -133,6 +102,11 @@ if __name__ == '__main__':
     if torch.cuda.is_available() and not opt.cuda:
         print("WARNING: You have a CUDA device, so you should probably run with --cuda")
 
+    # 读取字母表
+    with open(opt.alphabet, encoding='utf-8') as f:
+        alphabet = f.read().strip()
+
+    # ### 构建数据集对象
     dataset_train = dataset.Dataset_lmdb(root=opt.trainroot)
     assert dataset_train
     if not opt.random_sample:
@@ -147,19 +121,18 @@ if __name__ == '__main__':
     dataset_val = dataset.Dataset_lmdb(root=opt.valroot, transform=dataset.ResizeNormalize((100, 32)))
 
     # 构建网络
-    net_crnn = crnn.CRNN(opt.imgH, 1, len(opt.alphabet) + 1, opt.nh)
+    net_crnn = crnn.CRNN(opt.imgH, 1, len(alphabet) + 1, opt.nh)
     net_crnn.apply(weights_init)
     if opt.pretrained != '':
         print('loading pretrained model from %s' % opt.pretrained)
         net_crnn.load_state_dict(torch.load(opt.pretrained))
     print(net_crnn)
 
-    str2label = utils.StrLabelConverter(opt.alphabet)
-    ctc_loss = CTCLoss()
+    str2label = utils.StrLabelConverter(alphabet)
+    ctc_loss = CTCLoss(zero_infinity=True)
     # setup optimizer
     if opt.adam:
-        optimizer = optim.Adam(net_crnn.parameters(), lr=opt.lr,
-                               betas=(opt.beta1, 0.999))
+        optimizer = optim.Adam(net_crnn.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
     elif opt.adadelta:
         optimizer = optim.Adadelta(net_crnn.parameters())
     else:
@@ -181,28 +154,30 @@ if __name__ == '__main__':
     total_iter = len(train_loader) * opt.nepoch
     iteration = 0
     for epoch in range(opt.nepoch):
-        train_iter = iter(train_loader)
-        for _ in range(len(train_loader)):
+        for i, data in enumerate(train_loader, start=1):
+            iteration += 1
             for p in net_crnn.parameters():
                 p.requires_grad = True
             net_crnn.train()
 
-            cost = trainBatch(net_crnn, ctc_loss, optimizer)
+            cost = trainBatch(net_crnn, ctc_loss, optimizer, data, iteration)
             loss_avg.add(cost)
-            iteration += 1
 
-            # ### 打印信息,保存权重
+            # ### 打印信息
             if iteration % opt.displayInterval == 0:
-                print('[%d/%d][%d/%d] Loss: %f' %
-                      (epoch, opt.nepoch, iteration, len(train_loader), loss_avg.val()))
+                print(f'epoch: [{epoch}/{opt.nepoch}] | iter: {iteration} | Loss: {loss_avg.val()}')
                 loss_avg.reset()
 
+            # ### 验证精度
             if iteration % opt.valInterval == 0:
-                val(net_crnn, dataset_val, ctc_loss)
+                eval.val(net_crnn, dataset_val, ctc_loss, str2label, batchSize=256, max_iter=100)
 
-            # do checkpointing
+
+            # ### 保存权重
             if iteration % opt.saveInterval == 0:
-                torch.save(
-                    net_crnn.state_dict(), '{0}/netCRNN_{1}_{2}.pth'.format(opt.expr_dir, epoch, iteration))
+                torch.save(net_crnn.state_dict(), f'{opt.expr_dir}/netCRNN_{epoch}_{iteration}.pth')
+            # 每2000次保存一次 lastest.pth
+            if iteration % 2000 == 0:
+                torch.save(net_crnn.state_dict(), f'{opt.expr_dir}/netCRNN_lastest.pth')
 
     torch.save(net_crnn.state_dict(), os.path.join(opt.expr_dir, 'netCRNN_last.pth'))
