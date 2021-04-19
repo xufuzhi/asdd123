@@ -77,9 +77,7 @@ class StrLabelConverter(object):
             index = 0
             for i in range(length.numel()):
                 l = length[i]
-                texts.append(
-                    self.decode(
-                        t[index:index + l], torch.IntTensor([l]), raw=raw))
+                texts.append(self.decode(t[index:index + l], torch.IntTensor([l]), raw=raw))
                 index += l
             return texts
 

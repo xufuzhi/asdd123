@@ -3,6 +3,7 @@ import lmdb # install lmdb by "pip install lmdb"
 import cv2
 import numpy as np
 import glob
+from itertools import islice
 
 
 def checkImageIsValid(imageBin):
@@ -90,19 +91,35 @@ def read_text(path):
 
 if __name__ == '__main__':
 
-    outputPath = '../data/lol_lmdb'     # lmdb 输出目录
+    m = 'from name'     # 'from name'：标签从图片名字上获取。 'from txt': 标签从标签文件获取
+
+    outputPath = '../data/lmdb_5w'     # lmdb 输出目录
     # 训练图片路径，标签是txt格式，名字跟图片名字要一致，如123.jpg对应标签需要是123.txt
     # path = '../data/*.jpg'
-    path = '/home/xfz/temps/OCRdatasets/LOLtext/gt.txt'    # 标签文件
+    path = '/home/xfz/Projects/PycharmProjects/TextRecognitionDataGenerator-master/trdg/out'    # 标签文件， 当m='from name'时候为图片文件夹位置
 
-    rootpath = path.rsplit(os.path.sep, 1)[0]
-    imgPaths= []
+    imgPaths = []
     labellist = []
-    with open(path, encoding='utf-8-sig') as f:
-        for line in f:
-            imgname, label = line.split(',', 1)
-            imgPaths.append(os.path.join(rootpath, 'images', imgname.strip()))
-            labellist.append(label.strip().replace('"', ''))
+    if m == 'from name':
+        # 获取该目录下所有文件，存入列表中
+        f_nameList = os.listdir(path)
+        for imgname in f_nameList:
+            # 通过文件名后缀过滤文件类型
+            exp = imgname.rsplit('.')[-1]
+            if exp not in ['png', 'jpg']:
+                continue
+            label = imgname.split('_', 1)[0]
+            imgPaths.append(os.path.join(path, imgname))
+            labellist.append(label)
+    elif m == 'from txt':
+        rootpath = path.rsplit(os.path.sep, 1)[0]
+        with open(path, encoding='utf-8-sig') as f:
+            for line in f:
+                imgname, label = line.split(',', 1)
+                imgPaths.append(os.path.join(rootpath, 'images', imgname.strip()))
+                labellist.append(label.strip().replace('"', ''))
+    else:
+        raise ValueError("m内容错误，支持的内容：'from name'， 'from txt'")
 
 
 
@@ -125,15 +142,20 @@ if __name__ == '__main__':
     createDataset(outputPath, imgPaths, labellist, lexiconList=None, checkValid=True)
 
     # ### 读取LMDB数据集中图片并显示出来，验证一下数据集是否制作成功
+    val_num = 10
     with lmdb.open(outputPath) as env:
         txn = env.begin()
-        for key, value in txn.cursor():
-            # print (key, value)
+        for key, value in islice(txn.cursor(), val_num):
             imageBuf = np.fromstring(value, dtype=np.uint8)
             img = cv2.imdecode(imageBuf, cv2.IMREAD_GRAYSCALE)
             if img is not None:
+                # 得到图片对应 label
+                key = key.decode().replace('image', 'label', 1).encode()
+                label = txn.get(key).decode()
+                print(label)
+                # 显示图片
+                cv2.imshow('image', img)
+                cv2.waitKey()
+            else:   # 标签数据，不处理
                 pass
-                # cv2.imshow('image', img)
-                # cv2.waitKey()
-            else:
-                print('key: %s    label: %s' % (key, value))
+                # print('key: %s    label: %s' % (key, value))
