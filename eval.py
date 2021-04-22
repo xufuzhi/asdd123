@@ -9,7 +9,7 @@ from utils import dataset
 import time
 
 
-def val(net, dataset, criterion, labelConverter, batchSize=64, max_iter=0, n_display=500):
+def val(net, indataset, criterion, labelConverter, batchSize=64, max_iter=0, n_display=500):
     """
     :param net:
     :param dataset:
@@ -25,7 +25,7 @@ def val(net, dataset, criterion, labelConverter, batchSize=64, max_iter=0, n_dis
     device = next(net.parameters()).device  # get model device
 
     net.eval()
-    data_loader = torch.utils.data.DataLoader(dataset, shuffle=True, batch_size=batchSize, num_workers=0)
+    data_loader = torch.utils.data.DataLoader(indataset, shuffle=True, batch_size=batchSize, num_workers=0)
     val_iter = iter(data_loader)
 
     with torch.no_grad():
@@ -95,6 +95,7 @@ if __name__ == '__main__':
 
     # ### 构建数据集对象
     dataset_val = dataset.Dataset_lmdb(root=opt.valroot, transform=dataset.ResizeNormalize((100, 32)))
+    # dataset_val = dataset.Dataset_lmdb(root=opt.valroot)
 
     # 构建网络
     net_crnn = crnn.CRNN(opt.imgH, 1, len(alphabet) + 1, opt.nh).to(device=device)

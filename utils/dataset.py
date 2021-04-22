@@ -49,7 +49,7 @@ class Dataset_lmdb(Dataset):
             buf.write(imgbuf)
             buf.seek(0)
             try:
-                img = Image.open(buf).convert('L')
+                img = Image.open(buf)       #.convert('L')
             except IOError:
                 print('Corrupted image for %d' % index)
                 return self[index + 1]

@@ -15,10 +15,6 @@ import eval
 
 cudnn.benchmark = True
 
-# random.seed(opt.manualSeed)
-# np.random.seed(opt.manualSeed)
-# torch.manual_seed(opt.manualSeed)
-
 
 # custom weights initialization called on net_crnn
 def weights_init(m):
@@ -30,49 +26,14 @@ def weights_init(m):
         m.bias.data.fill_(0)
 
 
-def trainBatch(net, criterion, optimizer, data, iter_num):
-    cpu_images, cpu_texts = data
-    batch_size = cpu_images.size(0)
-    utils.loadData(image, cpu_images)
-    t, l = str2label.encode(cpu_texts)
-    utils.loadData(text, t)
-    utils.loadData(length, l)
-
-    preds = net(image)
-    preds_size = torch.LongTensor([preds.size(0)] * batch_size)
-    cost = criterion(preds, text, preds_size, length) #/ batch_size
-    optimizer.zero_grad()
-    cost.backward()
-    optimizer.step()
-
-    # ### 计算这个批次精度
-    if iter_num % opt.displayInterval == 0:
-        aa = torch.ones(1).detach
-        preds_v = preds.detach()
-        preds_size_v = preds_size.detach()
-
-        _, preds_v = preds_v.max(2)
-        # preds = preds.squeeze(2)
-        preds_v = preds_v.transpose(1, 0).contiguous().view(-1)
-        sim_preds = str2label.decode(preds_v.data, preds_size_v.data, raw=False)
-        n_correct = 0
-        for pred, target in zip(sim_preds, cpu_texts):
-            if pred == target.lower():
-                n_correct += 1
-        accuracy = n_correct / float(batch_size)
-        print(f'acc: {accuracy}')
-
-    return cost
-
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--trainroot', required=True, help='path to dataset')
     parser.add_argument('--valroot', required=True, help='path to dataset')
-    parser.add_argument('--workers', type=int, help='number of data loading workers', default=2)
-    parser.add_argument('--batchSize', type=int, default=256, help='input batch size')
+    parser.add_argument('--workers', type=int, help='number of data loading workers', default=0)
+    parser.add_argument('--batchSize', type=int, default=128, help='input batch size')
     parser.add_argument('--imgH', type=int, default=32, help='the height of the input image to network')
-    parser.add_argument('--imgW', type=int, default=100, help='the width of the input image to network')
+    parser.add_argument('--imgW', type=int, default=128, help='the width of the input image to network')
     parser.add_argument('--nh', type=int, default=256, help='size of the lstm hidden state')
     parser.add_argument('--nepoch', type=int, default=100, help='number of epochs to train for')
     # TODO(meijieru): epoch -> iter
@@ -87,7 +48,7 @@ if __name__ == '__main__':
     parser.add_argument('--valInterval', type=int, default=2000, help='Interval to be verifyed')
     parser.add_argument('--saveInterval', type=int, default=100000, help='Interval to be saved')
     parser.add_argument('--lr', type=float, default=0.001, help='learning rate for Critic, not used by adadealta')
-    parser.add_argument('--beta1', type=float, default=0.5, help='beta1 for adam. default=0.5')
+    parser.add_argument('--beta1', type=float, default=0.9, help='beta1 for adam. default=0.5')
     parser.add_argument('--adam', action='store_true', help='Whether to use adam (default is rmsprop)')
     parser.add_argument('--adadelta', action='store_true', help='Whether to use adadelta (default is rmsprop)')
     parser.add_argument('--keep_ratio', action='store_true', help='whether to keep ratio for image resize')
@@ -96,6 +57,10 @@ if __name__ == '__main__':
                         help='whether to sample the dataset with random sampler')
     opt = parser.parse_args()
     print(opt)
+
+    # random.seed(opt.manualSeed)
+    # np.random.seed(opt.manualSeed)
+    # torch.manual_seed(opt.manualSeed)
 
     if not os.path.exists(opt.expr_dir):
         os.makedirs(opt.expr_dir)
@@ -119,11 +84,12 @@ if __name__ == '__main__':
         shuffle=True, sampler=sampler,
         num_workers=int(opt.workers),
         collate_fn=dataset.AlignCollate(imgH=opt.imgH, imgW=opt.imgW, keep_ratio=opt.keep_ratio))
-    dataset_val = dataset.Dataset_lmdb(root=opt.valroot, transform=dataset.ResizeNormalize((100, 32)))
+    dataset_val = dataset.Dataset_lmdb(root=opt.valroot, transform=dataset.ResizeNormalize((opt.imgW, opt.imgH)))
+    # dataset_val = dataset.Dataset_lmdb(root=opt.valroot)
 
     # 构建网络
-    net_crnn = crnn.CRNN(opt.imgH, 1, len(alphabet) + 1, opt.nh)
-    net_crnn.apply(weights_init)
+    net_crnn = crnn.CRNN_res(opt.imgH, 3, len(alphabet) + 1, opt.nh)
+    # net_crnn.apply(weights_init)
     if opt.pretrained != '':
         print('loading pretrained model from %s' % opt.pretrained)
         net_crnn.load_state_dict(torch.load(opt.pretrained))
@@ -138,7 +104,9 @@ if __name__ == '__main__':
         optimizer = optim.Adadelta(net_crnn.parameters())
     else:
         optimizer = optim.RMSprop(net_crnn.parameters(), lr=opt.lr)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.8, patience=100)
+    # 学习率衰减器
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.8, patience=1000, min_lr=0.00001)
+    # scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, len(train_loader) * opt.nepoch)
 
     image = torch.empty((opt.batchSize, 3, opt.imgH, opt.imgH), dtype=torch.float32)
     text = torch.empty(opt.batchSize * 5, dtype=torch.int32)
@@ -162,7 +130,6 @@ if __name__ == '__main__':
                 p.requires_grad = True
             net_crnn.train()
 
-            # cost = trainBatch(net_crnn, ctc_loss, optimizer, data, iteration)
             # ### train one batch ################################
             cpu_images, cpu_texts = data
             batch_size = cpu_images.size(0)
@@ -173,11 +140,11 @@ if __name__ == '__main__':
 
             preds = net_crnn(image)
             preds_size = torch.LongTensor([preds.size(0)] * batch_size)
-            cost = ctc_loss(preds, text, preds_size, length)  # / batch_size
+            cost = ctc_loss(preds, text, preds_size, length)
             optimizer.zero_grad()
             cost.backward()
             optimizer.step()
-            # scheduler.step(cost)
+            scheduler.step(cost)
             ###########################################
             loss_avg.add(cost)
 
@@ -201,7 +168,7 @@ if __name__ == '__main__':
             # ### 打印信息
             if iteration % opt.displayInterval == 0:
                 lr = optimizer.state_dict()['param_groups'][0]['lr']
-                print(f'epoch: [{epoch}/{opt.nepoch}] | iter: {iteration} | Loss: {loss_avg.val()} | lr: {lr}')
+                print(f'epoch: [{epoch}/{opt.nepoch}] | iter: {iteration} | Loss: {loss_avg.val()} | lr: {lr:>.6f}')
                 loss_avg.reset()
 
             # ### 验证精度
