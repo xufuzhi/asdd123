@@ -68,6 +68,11 @@ if __name__ == '__main__':
     if not os.path.exists(opt.expr_dir):
         os.makedirs(opt.expr_dir)
 
+    # 创建日志文件
+    logfile = os.path.join(opt.expr_dir, 'train.log')
+    with open(logfile, 'w', encoding='utf-8') as f:
+        f.write('')
+
     if torch.cuda.is_available() and not opt.cuda:
         print("WARNING: You have a CUDA device, so you should probably run with --cuda")
 
@@ -171,13 +176,19 @@ if __name__ == '__main__':
             # ### 打印信息
             if iteration % opt.displayInterval == 0:
                 lr = optimizer.state_dict()['param_groups'][0]['lr']
-                print(f'epoch: [{epoch}/{opt.nepoch}] | iter: {iteration} | Loss: {loss_avg.val()} | lr: {lr:>.6f}')
+                prt_msg = f'[{time.clock()}] epoch: [{epoch}/{opt.nepoch}] | iter: {iteration} | Loss: {loss_avg.val()} | lr: {lr:>.6f}'
+                print(prt_msg)
                 loss_avg.reset()
+                with open(logfile, 'a', encoding='utf-8') as f:
+                    f.writelines(prt_msg + '\n')
 
             # ### 验证精度
             if iteration % opt.valInterval == 0:
-                eval.val(net_crnn, dataset_val, ctc_loss, str2label, batchSize=opt.batchSize, max_iter=0,
+                prt_msg = eval.val(net_crnn, dataset_val, ctc_loss, str2label, batchSize=opt.batchSize, max_iter=0,
                          n_display=opt.n_test_disp)
+                print(prt_msg)
+                with open(logfile, 'a', encoding='utf-8') as f:
+                    f.writelines(prt_msg + '\n')
 
 
             # ### 保存权重

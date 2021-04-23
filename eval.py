@@ -63,7 +63,7 @@ def val(net, indataset, criterion, labelConverter, batchSize=64, max_iter=0, n_d
             print(f'{raw_pred:<{20}} => {pred:<{20}}, gt: {gt}')
 
     accuracy = n_correct / float(total_img)
-    print(f'Test loss: {loss_avg.val():.3f}, n_correct:{n_correct}, total_img: {total_img}, accuray: {accuracy:.3f}')
+    return f'Test loss: {loss_avg.val():.3f}, n_correct:{n_correct}, total_img: {total_img}, accuray: {accuracy:.3f}'
 
 
 if __name__ == '__main__':
