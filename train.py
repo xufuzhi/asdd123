@@ -57,7 +57,7 @@ if __name__ == '__main__':
                         help='whether to sample the dataset with random sampler')
 
     parser.add_argument('--d_bug', type=str, default='avgpool')
-    parser.add_argument('--rudc', type=bool, default=True)
+    parser.add_argument('--rudc', action='store_false')
     opt = parser.parse_args()
     print(opt)
 
