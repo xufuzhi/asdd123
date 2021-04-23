@@ -55,7 +55,9 @@ if __name__ == '__main__':
     parser.add_argument('--manualSeed', type=int, default=1234, help='reproduce experiemnt')
     parser.add_argument('--random_sample', action='store_true',
                         help='whether to sample the dataset with random sampler')
+
     parser.add_argument('--d_bug', type=str, default='avgpool')
+    parser.add_argument('--rudc', type=bool, default=True)
     opt = parser.parse_args()
     print(opt)
 
@@ -89,7 +91,7 @@ if __name__ == '__main__':
     # dataset_val = dataset.Dataset_lmdb(root=opt.valroot)
 
     # 构建网络
-    net_crnn = crnn.CRNN_res(opt.imgH, 3, len(alphabet) + 1, opt.nh, d_bug=opt.d_bug)
+    net_crnn = crnn.CRNN_res(opt.imgH, 3, len(alphabet) + 1, opt.nh, d_bug=opt.d_bug, rudc=opt.rudc)
     # net_crnn.apply(weights_init)
     if opt.pretrained != '':
         print('loading pretrained model from %s' % opt.pretrained)
