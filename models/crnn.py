@@ -102,7 +102,7 @@ class CRNN_res(nn.Module):
         cnn[6][0].conv1.stride = (2, 1)
         cnn[6][0].downsample[0].stride = (2, 1)
         # cnn.add_module('avgPooling', nn.AvgPool2d(kernel_size=(4, 1), stride=1, padding=0))
-        cnn.add_module('maxPooling', nn.MaxPool2d(kernel_size=(4, 1), stride=1, padding=0))
+        cnn.add_module('last', nn.Conv2d(512, 512, kernel_size=4, stride=(4, 1), padding=0, bias=False))
 
         self.cnn = cnn
         self.rnn = nn.Sequential(
