@@ -7,6 +7,17 @@ import os
 from os.path import sep as path_sep
 from os.path import join as path_join
 
+
+import json
+
+d = {'name': 'jack', 'sex': '男', '年龄': 18, 'ohter': {'爱好': 'game', '学历': '博士'}}
+td = json.dumps(d)
+with open('jjjjjjjjjjjjjjjjjjson.json', 'w', encoding='utf-8') as f:
+    json.dump(d, f, indent=2, ensure_ascii=False)
+
+
+
+
 import torch
 import torch.nn as nn
 import torchvision
