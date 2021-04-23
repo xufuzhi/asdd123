@@ -100,6 +100,8 @@ class CRNN_res(nn.Module):
         if rudc:
             cnn[0] = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
             print('============> rudc')
+        else:
+            cnn[0].stride = (1, 1)
         cnn[3] = nn.MaxPool2d(kernel_size=1, stride=1, padding=0)
         cnn[6][0].conv1.stride = (2, 1)
         cnn[6][0].downsample[0].stride = (2, 1)
