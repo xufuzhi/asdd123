@@ -44,7 +44,7 @@ if __name__ == '__main__':
     parser.add_argument('--alphabet', type=str, default='./data/en.alphabet')
     parser.add_argument('--expr_dir', default='weights/lmdb_5w', help='Where to store samples and models')
     parser.add_argument('--displayInterval', type=int, default=300, help='Interval to be displayed')
-    parser.add_argument('--n_test_disp', type=int, default=50, help='Number of samples to display when test')
+    parser.add_argument('--n_test_disp', type=int, default=10, help='Number of samples to display when test')
     parser.add_argument('--valInterval', type=int, default=2000, help='Interval to be verifyed')
     parser.add_argument('--saveInterval', type=int, default=100000, help='Interval to be saved')
     parser.add_argument('--lr', type=float, default=0.001, help='learning rate for Critic, not used by adadealta')
@@ -173,7 +173,8 @@ if __name__ == '__main__':
 
             # ### 验证精度
             if iteration % opt.valInterval == 0:
-                eval.val(net_crnn, dataset_val, ctc_loss, str2label, batchSize=256, max_iter=100)
+                eval.val(net_crnn, dataset_val, ctc_loss, str2label, batchSize=opt.batchSize, max_iter=0,
+                         n_display=opt.n_test_disp)
 
 
             # ### 保存权重

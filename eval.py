@@ -9,7 +9,7 @@ from utils import dataset
 import time
 
 
-def val(net, indataset, criterion, labelConverter, batchSize=64, max_iter=0, n_display=500):
+def val(net, indataset, criterion, labelConverter, batchSize=64, max_iter=0, n_display=10):
     """
     :param net:
     :param dataset:
@@ -94,7 +94,7 @@ if __name__ == '__main__':
         alphabet = f.read().strip()
 
     # ### 构建数据集对象
-    dataset_val = dataset.Dataset_lmdb(root=opt.valroot, transform=dataset.ResizeNormalize((100, 32)))
+    dataset_val = dataset.Dataset_lmdb(root=opt.valroot, transform=dataset.ResizeNormalize((opt.imgW, opt.imgH)))
     # dataset_val = dataset.Dataset_lmdb(root=opt.valroot)
 
     # 构建网络
@@ -106,8 +106,7 @@ if __name__ == '__main__':
     ctc_loss = CTCLoss(zero_infinity=True).to(device=device)
 
     # ### 开始验证
-    val(net_crnn, dataset_val, ctc_loss, str2label, batchSize=256, max_iter=opt.max_iter)
-
+    val(net_crnn, dataset_val, ctc_loss, str2label, batchSize=opt.batchSize, max_iter=opt.max_iter, n_display=opt.n_test_disp)
 
 
 
