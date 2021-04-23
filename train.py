@@ -93,7 +93,7 @@ if __name__ == '__main__':
     if opt.pretrained != '':
         print('loading pretrained model from %s' % opt.pretrained)
         net_crnn.load_state_dict(torch.load(opt.pretrained))
-    print(net_crnn)
+    # print(net_crnn)
 
     str2label = utils.StrLabelConverter(alphabet)
     ctc_loss = CTCLoss(zero_infinity=True)
