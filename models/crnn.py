@@ -96,7 +96,7 @@ class CRNN_res(nn.Module):
 
         net = torchvision.models.resnet34(pretrained=False)
         cnn = nn.Sequential(*(list(net.children())[: -2]))
-        # 修改第一层
+        # 修改网络层
         if rudc:
             cnn[0] = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
             print('============> rudc')
