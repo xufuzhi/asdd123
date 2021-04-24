@@ -176,7 +176,8 @@ if __name__ == '__main__':
             # ### 打印信息
             if iteration % opt.displayInterval == 0:
                 lr = optimizer.state_dict()['param_groups'][0]['lr']
-                prt_msg = f'[{time.clock()}] epoch: [{epoch}/{opt.nepoch}] | iter: {iteration} | Loss: {loss_avg.val()} | lr: {lr:>.6f}'
+                prt_msg = f'[{time.strftime("%H:%M:%S", time.localtime())}] \
+                            epoch: [{epoch}/{opt.nepoch}] | iter: {iteration} | Loss: {loss_avg.val()} | lr: {lr:>.6f}'
                 print(prt_msg)
                 loss_avg.reset()
                 with open(logfile, 'a', encoding='utf-8') as f:
