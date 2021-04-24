@@ -12,7 +12,6 @@ from utils import utils, dataset
 import models.crnn as crnn
 import eval
 
-
 cudnn.benchmark = True
 
 
@@ -96,12 +95,12 @@ if __name__ == '__main__':
     # dataset_val = dataset.Dataset_lmdb(root=opt.valroot)
 
     # 构建网络
-    net_crnn = crnn.CRNN_res(opt.imgH, 3, len(alphabet) + 1, opt.nh, d_bug=opt.d_bug, rudc=opt.rudc)
+    net_crnn = crnn.CRNN_res_1(opt.imgH, 3, len(alphabet) + 1, opt.nh, d_bug=opt.d_bug, rudc=opt.rudc)
     # net_crnn.apply(weights_init)
     if opt.pretrained != '':
         print('loading pretrained model from %s' % opt.pretrained)
         net_crnn.load_state_dict(torch.load(opt.pretrained))
-    # print(net_crnn)
+    print(net_crnn)
 
     str2label = utils.StrLabelConverter(alphabet)
     ctc_loss = CTCLoss(zero_infinity=True)
@@ -113,7 +112,7 @@ if __name__ == '__main__':
     else:
         optimizer = optim.RMSprop(net_crnn.parameters(), lr=opt.lr)
     # 学习率衰减器
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.8, patience=1000, min_lr=0.00001)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.8, patience=1000, min_lr=0.000001)
     # scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, len(train_loader) * opt.nepoch)
 
     image = torch.empty((opt.batchSize, 3, opt.imgH, opt.imgH), dtype=torch.float32)
@@ -176,8 +175,8 @@ if __name__ == '__main__':
             # ### 打印信息
             if iteration % opt.displayInterval == 0:
                 lr = optimizer.state_dict()['param_groups'][0]['lr']
-                prt_msg = f'[{time.strftime("%H:%M:%S", time.localtime())}] \
-                            epoch: [{epoch}/{opt.nepoch}] | iter: {iteration} | Loss: {loss_avg.val()} | lr: {lr:>.6f}'
+                prt_msg = f'[{time.strftime("%H:%M:%S", time.localtime())}] ' \
+                          f'epoch: [{epoch}/{opt.nepoch}] | iter: {iteration} | Loss: {loss_avg.val()} | lr: {lr:>.6f}'
                 print(prt_msg)
                 loss_avg.reset()
                 with open(logfile, 'a', encoding='utf-8') as f:
@@ -186,11 +185,10 @@ if __name__ == '__main__':
             # ### 验证精度
             if iteration % opt.valInterval == 0:
                 prt_msg = eval.val(net_crnn, dataset_val, ctc_loss, str2label, batchSize=opt.batchSize, max_iter=0,
-                         n_display=opt.n_test_disp)
+                                   n_display=opt.n_test_disp)
                 print(prt_msg)
                 with open(logfile, 'a', encoding='utf-8') as f:
                     f.writelines(prt_msg + '\n')
-
 
             # ### 保存权重
             if iteration % opt.saveInterval == 0:
