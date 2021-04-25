@@ -116,7 +116,7 @@ if __name__ == '__main__':
     else:
         optimizer = optim.RMSprop(net_crnn.parameters(), lr=opt.lr)
     # 学习率衰减器
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.7, patience=500, min_lr=0.000001)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.7, patience=500, min_lr=0.00005)
     # scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, len(train_loader) * opt.nepoch)
 
     image = torch.empty((opt.batchSize, 3, opt.imgH, opt.imgH), dtype=torch.float32)
@@ -155,7 +155,7 @@ if __name__ == '__main__':
             optimizer.zero_grad()
             cost.backward()
             optimizer.step()
-            scheduler.step(cost)
+            # scheduler.step(cost)
             ###########################################
             loss_avg.add(cost)
 
