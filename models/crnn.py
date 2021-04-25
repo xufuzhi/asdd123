@@ -94,6 +94,8 @@ class CRNN_res(nn.Module):
         super(CRNN_res, self).__init__()
         assert imgH % 16 == 0, 'imgH has to be a multiple of 16'
 
+        print('CRNN_res')
+
         net = torchvision.models.resnet34(pretrained=False)
         cnn = nn.Sequential(*(list(net.children())[: -2]))
         # 修改网络层
@@ -146,6 +148,7 @@ class CRNN_res(nn.Module):
 ###########################################################################################################
 class CRNN_res_1(nn.Module):
     def __init__(self, imgH, nc, nclass, nh, n_rnn=2, leakyRelu=False, d_bug='maxpool', rudc=True):
+        print('CRNN_res_1')
         super(CRNN_res_1, self).__init__()
         assert imgH % 16 == 0, 'imgH has to be a multiple of 16'
 
@@ -203,6 +206,7 @@ class CRNN_res_1(nn.Module):
 ###########################################################################################################
 class CRNN_res_pp(nn.Module):
     def __init__(self, imgH, nc, nclass, nh, n_rnn=2, leakyRelu=False, d_bug='maxpool', rudc=True):
+        print('CRNN_res_pp')
         super(CRNN_res_pp, self).__init__()
         assert imgH % 16 == 0, 'imgH has to be a multiple of 16'
 
