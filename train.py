@@ -77,7 +77,7 @@ if __name__ == '__main__':
     if torch.cuda.is_available() and not opt.cuda:
         print("WARNING: You have a CUDA device, so you should probably run with --cuda")
 
-    # 读取字母表
+    # ### 读取字母表
     with open(opt.alphabet, encoding='utf-8') as f:
         alphabet = f.read().strip()
 
