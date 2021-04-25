@@ -42,7 +42,7 @@ if __name__ == '__main__':
     parser.add_argument('--pretrained', default='', help="path to pretrained model (to continue training)")
     parser.add_argument('--alphabet', type=str, default='./data/en.alphabet')
     parser.add_argument('--expr_dir', default='weights/lmdb_5w', help='Where to store samples and models')
-    parser.add_argument('--displayInterval', type=int, default=300, help='Interval to be displayed')
+    parser.add_argument('--displayInterval', type=int, default=200, help='Interval to be displayed')
     parser.add_argument('--n_test_disp', type=int, default=10, help='Number of samples to display when test')
     parser.add_argument('--valInterval', type=int, default=2000, help='Interval to be verifyed')
     parser.add_argument('--saveInterval', type=int, default=100000, help='Interval to be saved')
@@ -97,7 +97,7 @@ if __name__ == '__main__':
     # dataset_val = dataset.Dataset_lmdb(root=opt.valroot)
 
     # 构建网络
-    net_crnn = eval('crnn.' + opt.net)(opt.imgH, 3, len(alphabet) + 1, opt.nh, d_bug=opt.d_bug, rudc=opt.rudc)
+    net_crnn = eval('crnn.' + opt.net)(opt.imgH, 3, len(alphabet) + 1, opt.nh)
     # net_crnn = crnn.CRNN_res_1(opt.imgH, 3, len(alphabet) + 1, opt.nh, d_bug=opt.d_bug, rudc=opt.rudc)
     # net_crnn.apply(weights_init)
     if opt.pretrained != '':
@@ -116,7 +116,7 @@ if __name__ == '__main__':
     else:
         optimizer = optim.RMSprop(net_crnn.parameters(), lr=opt.lr)
     # 学习率衰减器
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.8, patience=1000, min_lr=0.000001)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.7, patience=500, min_lr=0.000001)
     # scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, len(train_loader) * opt.nepoch)
 
     image = torch.empty((opt.batchSize, 3, opt.imgH, opt.imgH), dtype=torch.float32)

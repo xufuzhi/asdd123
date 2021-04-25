@@ -242,7 +242,6 @@ class CRNN_res_pp(nn.Module):
             cnn.add_module('last_relu', nn.ReLU(inplace=True))
             print('==============> conv')
 
-        # cnn = nn.Sequential(l1, *(list(cnn.children())))
         self.cnn = cnn
         self.rnn = nn.Sequential(
             BidirectionalLSTM(512, nh, nh),
