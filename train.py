@@ -58,6 +58,7 @@ if __name__ == '__main__':
     parser.add_argument('--d_bug', type=str, default='avgpool')
     parser.add_argument('--rudc', action='store_false')
     parser.add_argument('--net', type=str, default='CRNN')
+    parser.add_argument('--prtnet', action='store_true')
     opt = parser.parse_args()
     print(opt)
 
