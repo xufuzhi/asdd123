@@ -10,7 +10,7 @@ import os
 from utils import utils, dataset
 
 import models.crnn as crnn
-import eval
+import verify
 
 cudnn.benchmark = True
 
@@ -57,6 +57,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--d_bug', type=str, default='avgpool')
     parser.add_argument('--rudc', action='store_false')
+    parser.add_argument('--net', type=str, default='CRNN')
     opt = parser.parse_args()
     print(opt)
 
@@ -95,6 +96,7 @@ if __name__ == '__main__':
     # dataset_val = dataset.Dataset_lmdb(root=opt.valroot)
 
     # 构建网络
+    a = eval('crnn.' + opt.net)
     net_crnn = crnn.CRNN_res_1(opt.imgH, 3, len(alphabet) + 1, opt.nh, d_bug=opt.d_bug, rudc=opt.rudc)
     # net_crnn.apply(weights_init)
     if opt.pretrained != '':
@@ -184,8 +186,8 @@ if __name__ == '__main__':
 
             # ### 验证精度
             if iteration % opt.valInterval == 0:
-                prt_msg = eval.val(net_crnn, dataset_val, ctc_loss, str2label, batchSize=opt.batchSize, max_iter=0,
-                                   n_display=opt.n_test_disp)
+                prt_msg = verify.val(net_crnn, dataset_val, ctc_loss, str2label, batchSize=opt.batchSize, max_iter=0,
+                                     n_display=opt.n_test_disp)
                 print(prt_msg)
                 with open(logfile, 'a', encoding='utf-8') as f:
                     f.writelines(prt_msg + '\n')
