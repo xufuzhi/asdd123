@@ -23,13 +23,6 @@ cnn[6][0].downsample[0].stride = (2, 1)
 cnn.add_module('avgPooling', nn.AvgPool2d(kernel_size=(4, 1), stride=1, padding=0))
 
 
-x = torch.rand(1, 3, 32, 100)
-# y = cnn[: 5](x)
-# y = cnn[5](y)
-y = cnn(x)
-
-
-
 
 filepath = './data/lmdb_5w'
 # filepath = '../../datas/aug240w'
