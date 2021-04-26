@@ -72,7 +72,7 @@ if __name__ == '__main__':
     parser.add_argument('--workers', type=int, help='number of data loading workers', default=0)
     parser.add_argument('--batchSize', type=int, default=256, help='input batch size')
     parser.add_argument('--imgH', type=int, default=32, help='the height of the input image to network')
-    parser.add_argument('--imgW', type=int, default=100, help='the width of the input image to network')
+    parser.add_argument('--imgW', type=int, default=128, help='the width of the input image to network')
     parser.add_argument('--nh', type=int, default=256, help='size of the lstm hidden state')
     # TODO(meijieru): epoch -> iter
     parser.add_argument('--cuda', action='store_true', help='enables cuda')
@@ -98,7 +98,8 @@ if __name__ == '__main__':
     # dataset_val = dataset.Dataset_lmdb(root=opt.valroot)
 
     # 构建网络
-    net_crnn = crnn.CRNN(opt.imgH, 1, len(alphabet) + 1, opt.nh).to(device=device)
+    # net_crnn = crnn.CRNN(opt.imgH, 1, len(alphabet) + 1, opt.nh).to(device=device)
+    net_crnn = crnn.CRNN_res_pp(opt.imgH, 3, len(alphabet) + 1, opt.nh, d_bug='avgpool', rudc=False).to(device=device)
     net_crnn.load_state_dict(torch.load(opt.weight))
     # print(net_crnn)
 
@@ -106,7 +107,7 @@ if __name__ == '__main__':
     ctc_loss = CTCLoss(zero_infinity=True).to(device=device)
 
     # ### 开始验证
-    val(net_crnn, dataset_val, ctc_loss, str2label, batchSize=opt.batchSize, max_iter=opt.max_iter, n_display=opt.n_test_disp)
+    print(val(net_crnn, dataset_val, ctc_loss, str2label, batchSize=opt.batchSize, max_iter=opt.max_iter, n_display=opt.n_test_disp))
 
 
 

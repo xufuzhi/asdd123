@@ -116,15 +116,32 @@ if __name__ == '__main__':
         optimizer = optim.Adadelta(net_crnn.parameters())
     else:
         optimizer = optim.RMSprop(net_crnn.parameters(), lr=opt.lr)
+
+
     # 学习率衰减器
-    if opt.lr_sch == 'R':
-        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.7, patience=500, min_lr=0.00005)
-    elif opt.lr_sch == 'C':
-        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, len(train_loader) * opt.nepoch)
-    elif opt.lr_sch == 'N':
-        scheduler = lambda x : x
-    else:
-        raise ValueError
+    class scheduler():
+        if opt.lr_sch == 'R':
+            r_adj = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.7, patience=500, min_lr=0.00005)
+        elif opt.lr_sch == 'C':
+            r_adj = optim.lr_scheduler.CosineAnnealingLR(optimizer, len(train_loader) * opt.nepoch)
+        elif opt.lr_sch == 'N':
+            r_adj = lambda x: None
+        else:
+            raise ValueError
+
+        def __init__(self):
+            pass
+
+        @classmethod
+        def step(cls, x):
+            if opt.lr_sch == 'R':
+                cls.r_adj.step(x)
+            elif opt.lr_sch == 'C':
+                cls.r_adj.step()
+            elif opt.lr_sch == 'N':
+                pass
+            else:
+                raise ValueError
 
     image = torch.empty((opt.batchSize, 3, opt.imgH, opt.imgH), dtype=torch.float32)
     text = torch.empty(opt.batchSize * 5, dtype=torch.int32)
@@ -158,6 +175,7 @@ if __name__ == '__main__':
 
             preds = net_crnn(image)
             preds_size = torch.LongTensor([preds.size(0)] * batch_size)
+            preds = preds.to(torch.float32)
             cost = ctc_loss(preds, text, preds_size, length)
             optimizer.zero_grad()
             cost.backward()
