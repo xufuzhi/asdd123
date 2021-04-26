@@ -38,8 +38,8 @@ if __name__ == '__main__':
     # TODO(meijieru): epoch -> iter
     parser.add_argument('--cuda', action='store_true', help='enables cuda')
     parser.add_argument('--ngpu', type=int, default=1, help='number of GPUs to use')
-    parser.add_argument('--pretrained', default='weights/lmdb_5w/netCRNN_lastest.pth', help="path to pretrained model (to continue training)")
-    # parser.add_argument('--pretrained', default='', help="path to pretrained model (to continue training)")
+    # parser.add_argument('--pretrained', default='weights/lmdb_5w/netCRNN_lastest.pth', help="path to pretrained model (to continue training)")
+    parser.add_argument('--pretrained', default='', help="path to pretrained model (to continue training)")
     parser.add_argument('--alphabet', type=str, default='./data/en.alphabet')
     parser.add_argument('--expr_dir', default='weights/lmdb_5w', help='Where to store samples and models')
     parser.add_argument('--displayInterval', type=int, default=200, help='Interval to be displayed')
