@@ -38,8 +38,8 @@ if __name__ == '__main__':
     # TODO(meijieru): epoch -> iter
     parser.add_argument('--cuda', action='store_true', help='enables cuda')
     parser.add_argument('--ngpu', type=int, default=1, help='number of GPUs to use')
-    # parser.add_argument('--pretrained', default='weights/lmdb_5w/netCRNN_lastest.pth', help="path to pretrained model (to continue training)")
-    parser.add_argument('--pretrained', default='', help="path to pretrained model (to continue training)")
+    parser.add_argument('--pretrained', default='weights/lmdb_5w/netCRNN_lastest.pth', help="path to pretrained model (to continue training)")
+    # parser.add_argument('--pretrained', default='', help="path to pretrained model (to continue training)")
     parser.add_argument('--alphabet', type=str, default='./data/en.alphabet')
     parser.add_argument('--expr_dir', default='weights/lmdb_5w', help='Where to store samples and models')
     parser.add_argument('--displayInterval', type=int, default=200, help='Interval to be displayed')
@@ -59,6 +59,7 @@ if __name__ == '__main__':
     parser.add_argument('--rudc', action='store_false')
     parser.add_argument('--net', type=str, default='CRNN')
     parser.add_argument('--prtnet', action='store_true')
+    parser.add_argument('--lr_sch', type=str, default='R')
     opt = parser.parse_args()
     print(opt)
 
@@ -116,8 +117,14 @@ if __name__ == '__main__':
     else:
         optimizer = optim.RMSprop(net_crnn.parameters(), lr=opt.lr)
     # 学习率衰减器
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.7, patience=500, min_lr=0.00005)
-    # scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, len(train_loader) * opt.nepoch)
+    if opt.lr_sch == 'R':
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.7, patience=500, min_lr=0.00005)
+    elif opt.lr_sch == 'C':
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, len(train_loader) * opt.nepoch)
+    elif opt.lr_sch == 'N':
+        scheduler = lambda x : x
+    else:
+        raise ValueError
 
     image = torch.empty((opt.batchSize, 3, opt.imgH, opt.imgH), dtype=torch.float32)
     text = torch.empty(opt.batchSize * 5, dtype=torch.int32)
@@ -155,7 +162,7 @@ if __name__ == '__main__':
             optimizer.zero_grad()
             cost.backward()
             optimizer.step()
-            # scheduler.step(cost)
+            scheduler.step(cost)
             ###########################################
             loss_avg.add(cost)
 
