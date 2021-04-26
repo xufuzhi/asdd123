@@ -13,14 +13,15 @@ import torch
 import torch.nn as nn
 import torchvision
 
-net = torchvision.models.resnet34(pretrained=False)
-cnn = nn.Sequential(*(list(net.children())[: -2]))
-# 修改第一层
-cnn[0] = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
-cnn[3] = nn.MaxPool2d(kernel_size=1, stride=1, padding=0)
-cnn[6][0].conv1.stride = (2, 1)
-cnn[6][0].downsample[0].stride = (2, 1)
-cnn.add_module('avgPooling', nn.AvgPool2d(kernel_size=(4, 1), stride=1, padding=0))
+net = torchvision.models.vgg16_bn(pretrained=False)
+cnn = net.features
+cnn[6] = nn.MaxPool2d(kernel_size=(2, 1), stride=(2, 1), padding=0, dilation=1, ceil_mode=False)
+cnn[23] = nn.MaxPool2d(kernel_size=(2, 1), stride=(2, 1), padding=0, dilation=1, ceil_mode=False)
+cnn[33] = nn.MaxPool2d(kernel_size=(2, 1), stride=(2, 1), padding=0, dilation=1, ceil_mode=False)
+
+x = torch.rand(1, 3, 32, 128)
+y = cnn(x)
+
 
 
 

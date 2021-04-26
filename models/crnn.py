@@ -263,3 +263,95 @@ class CRNN_res_pp(nn.Module):
         # output = F.log_softmax(output, dim=2)
 
         return output
+
+
+###########################################################################################################
+class CRNN_vgg16(nn.Module):
+    def __init__(self, imgH, nc, nclass, nh, n_rnn=2, leakyRelu=False, d_bug='maxpool', rudc=True):
+        print('CRNN_vgg16')
+        super(CRNN_vgg16, self).__init__()
+        assert imgH % 16 == 0, 'imgH has to be a multiple of 16'
+
+        net = torchvision.models.vgg16_bn(pretrained=False)
+        cnn = net.features
+        cnn[6] = nn.MaxPool2d(kernel_size=(2, 1), stride=(2, 1), padding=0, dilation=1, ceil_mode=False)
+        cnn[23] = nn.MaxPool2d(kernel_size=(2, 1), stride=(2, 1), padding=0, dilation=1, ceil_mode=False)
+        cnn[33] = nn.MaxPool2d(kernel_size=(2, 1), stride=(2, 1), padding=0, dilation=1, ceil_mode=False)
+
+        self.cnn = cnn
+        self.rnn = nn.Sequential(
+            BidirectionalLSTM(512, nh, nh),
+            BidirectionalLSTM(nh, nh, nclass)
+        )
+
+    def forward(self, input):
+        # conv features
+        conv = self.cnn(input)
+        b, c, h, w = conv.size()
+        assert h == 1, "the height of conv must be 1"
+        conv = conv.squeeze(2)
+        conv = conv.permute(2, 0, 1)  # [w, b, c]
+
+        # rnn features
+        output = self.rnn(conv)
+
+        # add log_softmax to converge output
+        # output = F.log_softmax(output, dim=2)
+
+        return output
+
+
+######################################################################################################
+class CRNN_m(nn.Module):
+    def __init__(self, imgH, nc, nclass, nh, n_rnn=2, leakyRelu=False, d_bug = 'maxpool', rudc=True):
+        super(CRNN_m, self).__init__()
+        assert imgH % 16 == 0, 'imgH has to be a multiple of 16'
+
+        print('CRNN_m')
+
+        net = torchvision.models.resnet34(pretrained=False)
+        cnn = nn.Sequential(*(list(net.children())[: -2]))
+        # 修改网络层
+        if rudc:
+            cnn[0] = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
+            print('============> rudc')
+        else:
+            cnn[0].stride = (1, 1)
+        cnn[3] = nn.MaxPool2d(kernel_size=1, stride=1, padding=0)
+        cnn[6][0].conv1.stride = (2, 1)
+        cnn[6][0].downsample[0].stride = (2, 1)
+        cnn[7][0].conv1.stride = (2, 1)
+        cnn[7][0].downsample[0].stride = (2, 1)
+        if d_bug == 'avgpool':
+            cnn.add_module('avgPooling', nn.AvgPool2d(kernel_size=(4, 2), stride=(4, 2), padding=0))
+            print('==============> avgPooling')
+        elif d_bug == 'maxpool':
+            cnn.add_module('avgPooling', nn.MaxPool2d(kernel_size=(4, 2), stride=(4, 2), padding=0))
+            print('==============> maxpool')
+        else:
+            cnn.add_module('last_conv', nn.Conv2d(512, 512, kernel_size=(4, 2), stride=(4, 2), padding=0, bias=False))
+            cnn.add_module('last_bn', nn.BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True))
+            cnn.add_module('last_relu', nn.ReLU(inplace=True))
+            print('==============> conv')
+
+        self.cnn = cnn
+        self.rnn = nn.Sequential(
+            BidirectionalLSTM(512, nh, nh),
+            BidirectionalLSTM(nh, nh, nclass)
+        )
+
+
+
+    def forward(self, input):
+        # conv features
+        conv = self.cnn(input)
+        b, c, h, w = conv.size()
+        assert h == 1, "the height of conv must be 1"
+        conv = conv.squeeze(2)
+        conv = conv.permute(2, 0, 1)  # [w, b, c]
+
+        # rnn features
+        output = self.rnn(conv)
+
+        return output
+
