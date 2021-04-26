@@ -99,7 +99,7 @@ if __name__ == '__main__':
 
     # 构建网络
     # net_crnn = crnn.CRNN(opt.imgH, 1, len(alphabet) + 1, opt.nh).to(device=device)
-    net_crnn = crnn.CRNN_res_pp(opt.imgH, 3, len(alphabet) + 1, opt.nh, d_bug='avgpool', rudc=False).to(device=device)
+    net_crnn = crnn.CRNN_res_1(opt.imgH, 3, len(alphabet) + 1, opt.nh, d_bug='maxpool', rudc=False).to(device=device)
     net_crnn.load_state_dict(torch.load(opt.weight))
     # print(net_crnn)
 
