@@ -32,9 +32,10 @@ class print_time():
 with open('data/en.alphabet', encoding='utf-8') as f:
     alphabet = f.read().strip()
 
-net_crnn = crnn.CRNN_res50_pp(32, 3, len(alphabet) + 1, 256, d_bug='maxpool', rudc=False).to('cuda').eval()
+net_crnn = crnn.CRNN_ocr34(32, 3, len(alphabet) + 1, 256, d_bug='maxpool', rudc=False).to('cuda').eval()
 # net_crnn = crnn.CRNN(32, 3, len(alphabet) + 1, 256).to('cuda').eval()
 
+net_crnn = net_crnn.cnn
 x = torch.rand([100, 3, 32, 128]).cuda()
 
 with torch.no_grad():
