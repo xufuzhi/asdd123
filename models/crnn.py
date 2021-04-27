@@ -302,6 +302,7 @@ class CRNN_vgg16(nn.Module):
 
 
 ######################################################################################################
+import copy
 class CRNN_m(nn.Module):
     def __init__(self, imgH, nc, nclass, nh, n_rnn=2, leakyRelu=False, d_bug = 'maxpool', rudc=True):
         super(CRNN_m, self).__init__()
@@ -318,18 +319,28 @@ class CRNN_m(nn.Module):
         else:
             cnn[0].stride = (1, 1)
         cnn[3] = nn.MaxPool2d(kernel_size=1, stride=1, padding=0)
+        cnn[4][1] = copy.deepcopy(cnn[5][0])
+        cnn[4][1].conv1 = nn.Conv2d(64, 64, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False)
+        cnn[4][1].bn1 = nn.BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        cnn[4][1].conv2 = nn.Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+        cnn[4][1].bn2 = nn.BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        cnn[4][1].downsample[0] = nn.Conv2d(64, 64, kernel_size=(1, 1), stride=(2, 2), bias=False)
+        cnn[4][1].downsample[1] = nn.BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+
+        cnn[5][0].conv1.stride = (2, 1)
+        cnn[5][0].downsample[0].stride = (2, 1)
         cnn[6][0].conv1.stride = (2, 1)
         cnn[6][0].downsample[0].stride = (2, 1)
         cnn[7][0].conv1.stride = (2, 1)
         cnn[7][0].downsample[0].stride = (2, 1)
         if d_bug == 'avgpool':
-            cnn.add_module('avgPooling', nn.AvgPool2d(kernel_size=(4, 2), stride=(4, 2), padding=0))
+            cnn.add_module('avgPooling', nn.AvgPool2d(kernel_size=(2, 2), stride=(2, 2), padding=0))
             print('==============> avgPooling')
         elif d_bug == 'maxpool':
-            cnn.add_module('avgPooling', nn.MaxPool2d(kernel_size=(4, 2), stride=(4, 2), padding=0))
+            cnn.add_module('avgPooling', nn.MaxPool2d(kernel_size=(2, 2), stride=(2, 2), padding=0))
             print('==============> maxpool')
         else:
-            cnn.add_module('last_conv', nn.Conv2d(512, 512, kernel_size=(4, 2), stride=(4, 2), padding=0, bias=False))
+            cnn.add_module('last_conv', nn.Conv2d(512, 512, kernel_size=(2, 2), stride=(2, 2), padding=0, bias=False))
             cnn.add_module('last_bn', nn.BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True))
             cnn.add_module('last_relu', nn.ReLU(inplace=True))
             print('==============> conv')
