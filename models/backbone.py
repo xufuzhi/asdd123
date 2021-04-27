@@ -56,7 +56,7 @@ def make_ocr34():
         ),
 
         nn.Sequential(
-            BasicBlock(32, 64, stride=2, downsample=make_downsample(32, 64, 2)),
+            BasicBlock(64, 64, stride=2, downsample=make_downsample(64, 64, 2)),
             BasicBlock(64, 64)
         ),
 
