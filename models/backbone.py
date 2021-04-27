@@ -51,14 +51,12 @@ def make_ocr34():
         nn.ReLU(inplace=True),
 
         nn.Sequential(
-            BasicBlock(32, 32),
-            BasicBlock(32, 32),
-            BasicBlock(32, 32)
+            BasicBlock(32, 64, stride=1, downsample=make_downsample(32, 64, 1)),
+            BasicBlock(64, 64)
         ),
 
         nn.Sequential(
             BasicBlock(32, 64, stride=2, downsample=make_downsample(32, 64, 2)),
-            BasicBlock(64, 64),
             BasicBlock(64, 64)
         ),
 
