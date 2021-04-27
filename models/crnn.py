@@ -446,8 +446,10 @@ class CRNN_res50_1(nn.Module):
             new_1
         )
 
-        cnn = nn.Sequential(l1, *(list(net.children())[3: -2]))
+        cnn = nn.Sequential(l1, *(list(net.children())[4: -2]))
         # 修改网络层
+        cnn[1][0].conv2.stride = (2, 2)
+        cnn[1][0].downsample[0].stride = (2, 2)
         cnn[3][0].conv2.stride = (2, 1)
         cnn[3][0].downsample[0].stride = (2, 1)
         cnn[4][0].conv2.stride = (2, 1)
