@@ -450,12 +450,12 @@ class CRNN_res50_1(nn.Module):
         # 修改网络层
         cnn[1][0].conv2.stride = (2, 2)
         cnn[1][0].downsample[0].stride = (2, 2)
+        cnn[2][0].conv2.stride = (2, 1)
+        cnn[2][0].downsample[0].stride = (2, 1)
         cnn[3][0].conv2.stride = (2, 1)
         cnn[3][0].downsample[0].stride = (2, 1)
         cnn[4][0].conv2.stride = (2, 1)
         cnn[4][0].downsample[0].stride = (2, 1)
-        cnn[5][0].conv2.stride = (2, 1)
-        cnn[5][0].downsample[0].stride = (2, 1)
         cnn.add_module('maxPooling', nn.MaxPool2d(kernel_size=2, stride=2, padding=0))
 
         self.cnn = cnn
