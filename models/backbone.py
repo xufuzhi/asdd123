@@ -7,46 +7,18 @@ from torchvision.models.resnet import conv1x1
 from torchvision.models.resnet import BasicBlock
 
 
-def make_layer(block, planes, blocks, stride=1, dilate=False):
-    norm_layer = self._norm_layer
-    downsample = None
-    previous_dilation = self.dilation
-
-    if stride != 1 or self.inplanes != planes * block.expansion:
-        downsample = nn.Sequential(
-            conv1x1(self.inplanes, planes * block.expansion, stride),
-            norm_layer(planes * block.expansion),
-        )
-
-    layers = []
-    layers.append(block(self.inplanes, planes, stride, downsample, self.groups,
-                        self.base_width, previous_dilation, norm_layer))
-    self.inplanes = planes * block.expansion
-    for _ in range(1, blocks):
-        layers.append(block(self.inplanes, planes, groups=self.groups,
-                            base_width=self.base_width, dilation=self.dilation,
-                            norm_layer=norm_layer))
-
-    return nn.Sequential(*layers)
-
-
-class OCR34(nn.Module):
-    def __init__(self):
-        super(OCR34, self).__init__()
-
-
-def make_downsample(ins, outs, stride):
+def make_downsample(in_channels, outs, stride):
     net = nn.Sequential(
-        conv1x1(ins, outs, stride),
+        conv1x1(in_channels, outs, stride),
         nn.BatchNorm2d(outs, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
     )
 
     return net
 
 
-def make_ocr34():
+def make_ocr34(in_channels=3):
     ocr34 = nn.Sequential(
-        nn.Conv2d(3, 32, kernel_size=7, stride=1, padding=(3, 3), bias=False),
+        nn.Conv2d(in_channels, 32, kernel_size=7, stride=1, padding=(3, 3), bias=False),
         nn.BatchNorm2d(32, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
         nn.ReLU(inplace=True),
 
@@ -83,3 +55,81 @@ def make_ocr34():
     )
 
     return ocr34
+
+
+def make_ocr7(in_channels, leaky_relu=False):
+    ks = [3, 3, 3, 3, 3, 3, 2]
+    ps = [1, 1, 1, 1, 1, 1, 0]
+    ss = [1, 1, 1, 1, 1, 1, 1]
+    nm = [64, 128, 256, 256, 512, 512, 512]
+    # nm = [64, 128, 128, 128, 256, 256, 512]
+
+    def conv_relu(i, batch_normalization=False):
+        nIn = in_channels if i == 0 else nm[i - 1]
+        nOut = nm[i]
+        cnn.add_module('conv{0}'.format(i),
+                       nn.Conv2d(nIn, nOut, ks[i], ss[i], ps[i]))
+        if batch_normalization:
+            cnn.add_module('batchnorm{0}'.format(i), nn.BatchNorm2d(nOut))
+        if leaky_relu:
+            cnn.add_module('relu{0}'.format(i),
+                           nn.LeakyReLU(0.2, inplace=True))
+        else:
+            cnn.add_module('relu{0}'.format(i), nn.ReLU(True))
+
+    cnn = nn.Sequential()
+    conv_relu(0)
+    cnn.add_module('pooling{0}'.format(0), nn.MaxPool2d([2, 2], [2, 1]))  # 64x16x64
+    conv_relu(1)
+    cnn.add_module('pooling{0}'.format(1), nn.MaxPool2d(2, 2))  # 128x8x32
+    conv_relu(2, True)
+    conv_relu(3)
+    cnn.add_module('pooling{0}'.format(2), nn.MaxPool2d((2, 2), (2, 1), (0, 1)))  # 256x4x32
+    conv_relu(4, True)
+    conv_relu(5)
+    cnn.add_module('pooling{0}'.format(3), nn.MaxPool2d((2, 2), (2, 2), (0, 1)))  # 512x2x32
+    conv_relu(6, True)
+
+    return cnn
+
+
+def make_ocr10(in_channels, leaky_relu=False):
+    ks = [7, 3, 3, 3, 3, 3, 3, 3, 3, 2]
+    ps = [3, 1, 1, 1, 1, 1, 1, 1, 1, 0]
+    ss = [1, 1, 1, 1, 1, 1, 1, 1, 1, (2, 1)]
+    nm = [32, 64, 64, 128, 128, 256, 256, 512, 512, 512]
+    # nm = [64, 128, 128, 128, 256, 256, 512]
+
+    def conv_relu(i, batch_normalization=False):
+        nIn = in_channels if i == 0 else nm[i - 1]
+        nOut = nm[i]
+        cnn.add_module('conv{0}'.format(i),
+                       nn.Conv2d(nIn, nOut, ks[i], ss[i], ps[i]))
+        if batch_normalization:
+            cnn.add_module('batchnorm{0}'.format(i), nn.BatchNorm2d(nOut))
+        if leaky_relu:
+            cnn.add_module('relu{0}'.format(i),
+                           nn.LeakyReLU(0.2, inplace=True))
+        else:
+            cnn.add_module('relu{0}'.format(i), nn.ReLU(True))
+
+    cnn = nn.Sequential()
+    conv_relu(0)
+    conv_relu(1)
+    conv_relu(2, True)
+    cnn.add_module('pooling{0}'.format(0), nn.MaxPool2d((2, 2), (2, 2)))
+    conv_relu(3)
+    conv_relu(4, True)
+    cnn.add_module('pooling{0}'.format(1), nn.MaxPool2d((2, 2), (2, 1)))
+    conv_relu(5)
+    conv_relu(6, True)
+    cnn.add_module('pooling{0}'.format(2), nn.MaxPool2d((2, 2), (2, 1), (0, 1)))
+    conv_relu(7)  # 512x1x32
+    conv_relu(8, True)
+    cnn.add_module('pooling{0}'.format(3), nn.MaxPool2d((2, 2), (2, 2), (0, 1)))
+    conv_relu(9)
+
+    return cnn
+
+
+

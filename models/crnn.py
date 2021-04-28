@@ -27,45 +27,11 @@ class BidirectionalLSTM(nn.Module):
 
 
 class CRNN(nn.Module):
-
-    def __init__(self, imgH, nc, nclass, nh, n_rnn=2, leakyRelu=False, d_bug = 'maxpool', rudc=True):
+    def __init__(self, imgH, in_channels, nclass, nh, n_rnn=2, leaky_relu=False, d_bug ='maxpool', rudc=True):
         super(CRNN, self).__init__()
         assert imgH % 16 == 0, 'imgH has to be a multiple of 16'
 
-        ks = [3, 3, 3, 3, 3, 3, 2]
-        ps = [1, 1, 1, 1, 1, 1, 0]
-        ss = [1, 1, 1, 1, 1, 1, 1]
-        nm = [64, 128, 256, 256, 512, 512, 512]
-        # nm = [64, 128, 128, 128, 256, 256, 512]
-
-        cnn = nn.Sequential()
-
-        def conv_relu(i, batchNormalization=False):
-            nIn = nc if i == 0 else nm[i - 1]
-            nOut = nm[i]
-            cnn.add_module('conv{0}'.format(i),
-                           nn.Conv2d(nIn, nOut, ks[i], ss[i], ps[i]))
-            if batchNormalization:
-                cnn.add_module('batchnorm{0}'.format(i), nn.BatchNorm2d(nOut))
-            if leakyRelu:
-                cnn.add_module('relu{0}'.format(i),
-                               nn.LeakyReLU(0.2, inplace=True))
-            else:
-                cnn.add_module('relu{0}'.format(i), nn.ReLU(True))
-
-        conv_relu(0)
-        cnn.add_module('pooling{0}'.format(0), nn.MaxPool2d([2, 2], [2, 1]))  # 64x16x64
-        conv_relu(1)
-        cnn.add_module('pooling{0}'.format(1), nn.MaxPool2d(2, 2))  # 128x8x32
-        conv_relu(2, True)
-        conv_relu(3)
-        cnn.add_module('pooling{0}'.format(2), nn.MaxPool2d((2, 2), (2, 1), (0, 1)))  # 256x4x32
-        conv_relu(4, True)
-        conv_relu(5)
-        cnn.add_module('pooling{0}'.format(3), nn.MaxPool2d((2, 2), (2, 2), (0, 1)))  # 512x2x32
-        conv_relu(6, True)  # 512x1x32
-
-        self.cnn = cnn
+        self.cnn = backbone.make_ocr7(in_channels, leaky_relu=leaky_relu)
         self.rnn = nn.Sequential(
             BidirectionalLSTM(512, nh, nh),
             BidirectionalLSTM(nh, nh, nclass)
@@ -89,49 +55,11 @@ class CRNN(nn.Module):
 
 
 class CRNN_10(nn.Module):
-
-    def __init__(self, imgH, nc, nclass, nh, n_rnn=2, leakyRelu=False, d_bug='maxpool', rudc=True):
+    def __init__(self, imgH, in_channels, nclass, nh, n_rnn=2, leaky_relu=False, d_bug='maxpool', rudc=True):
         super(CRNN_10, self).__init__()
         assert imgH % 16 == 0, 'imgH has to be a multiple of 16'
 
-        ks = [7, 3, 3, 3, 3, 3, 3, 3, 3, 2]
-        ps = [3, 1, 1, 1, 1, 1, 1, 1, 1, 0]
-        ss = [1, 1, 1, 1, 1, 1, 1, 1, 1, (2, 1)]
-        nm = [32, 64, 64, 128, 128, 256, 256, 512, 512, 512]
-        # nm = [64, 128, 128, 128, 256, 256, 512]
-
-        cnn = nn.Sequential()
-
-        def conv_relu(i, batchNormalization=False):
-            nIn = nc if i == 0 else nm[i - 1]
-            nOut = nm[i]
-            cnn.add_module('conv{0}'.format(i),
-                           nn.Conv2d(nIn, nOut, ks[i], ss[i], ps[i]))
-            if batchNormalization:
-                cnn.add_module('batchnorm{0}'.format(i), nn.BatchNorm2d(nOut))
-            if leakyRelu:
-                cnn.add_module('relu{0}'.format(i),
-                               nn.LeakyReLU(0.2, inplace=True))
-            else:
-                cnn.add_module('relu{0}'.format(i), nn.ReLU(True))
-
-        conv_relu(0)
-        conv_relu(1)
-        conv_relu(2, True)
-        cnn.add_module('pooling{0}'.format(0), nn.MaxPool2d((2, 2), (2, 2)))
-        conv_relu(3)
-        conv_relu(4, True)
-        cnn.add_module('pooling{0}'.format(1), nn.MaxPool2d((2, 2), (2, 1)))
-        conv_relu(5)
-        conv_relu(6, True)
-        cnn.add_module('pooling{0}'.format(2), nn.MaxPool2d((2, 2), (2, 1), (0, 1)))
-        conv_relu(7)  # 512x1x32
-        conv_relu(8, True)
-        cnn.add_module('pooling{0}'.format(3), nn.MaxPool2d((2, 2), (2, 2), (0, 1)))
-        conv_relu(9)
-
-
-        self.cnn = cnn
+        self.cnn = backbone.make_ocr10(in_channels, leaky_relu=leaky_relu)
         self.rnn = nn.Sequential(
             BidirectionalLSTM(512, nh, nh),
             BidirectionalLSTM(nh, nh, nclass)
@@ -152,73 +80,16 @@ class CRNN_10(nn.Module):
         # output = F.log_softmax(output, dim=2)
 
         return output
-
-
-######################################################################################################
-class CRNN_res(nn.Module):
-    def __init__(self, imgH, nc, nclass, nh, n_rnn=2, leakyRelu=False, d_bug = 'maxpool', rudc=True):
-        super(CRNN_res, self).__init__()
-        assert imgH % 16 == 0, 'imgH has to be a multiple of 16'
-
-        print('CRNN_res')
-
-        net = torchvision.models.resnet34(pretrained=False)
-        cnn = nn.Sequential(*(list(net.children())[: -2]))
-        # 修改网络层
-        if rudc:
-            cnn[0] = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
-            print('============> rudc')
-        else:
-            cnn[0].stride = (1, 1)
-        cnn[3] = nn.MaxPool2d(kernel_size=1, stride=1, padding=0)
-        cnn[6][0].conv1.stride = (2, 1)
-        cnn[6][0].downsample[0].stride = (2, 1)
-        if d_bug == 'avgpool':
-            cnn.add_module('avgPooling', nn.AvgPool2d(kernel_size=(4, 1), stride=1, padding=0))
-            print('==============> avgPooling')
-        elif d_bug == 'maxpool':
-            cnn.add_module('avgPooling', nn.MaxPool2d(kernel_size=(4, 1), stride=1, padding=0))
-            print('==============> maxpool')
-        else:
-            cnn.add_module('last_conv', nn.Conv2d(512, 512, kernel_size=4, stride=(4, 1), padding=0, bias=False))
-            cnn.add_module('last_bn', nn.BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True))
-            cnn.add_module('last_relu', nn.ReLU(inplace=True))
-            print('==============> conv')
-
-        self.cnn = cnn
-        self.rnn = nn.Sequential(
-            BidirectionalLSTM(512, nh, nh),
-            BidirectionalLSTM(nh, nh, nclass)
-        )
-
-
-
-    def forward(self, input):
-        # conv features
-        conv = self.cnn(input)
-        b, c, h, w = conv.size()
-        assert h == 1, "the height of conv must be 1"
-        conv = conv.squeeze(2)
-        conv = conv.permute(2, 0, 1)  # [w, b, c]
-
-        # rnn features
-        output = self.rnn(conv)
-
-        # add log_softmax to converge output
-        # output = F.log_softmax(output, dim=2)
-
-        return output
-
 
 
 ###########################################################################################################
 class CRNN_ocr34(nn.Module):
-    def __init__(self, imgH, nc, nclass, nh, n_rnn=2, leakyRelu=False, d_bug='maxpool', rudc=True):
+    def __init__(self, imgH, in_channels, nclass, nh, n_rnn=2, leaky_relu=False, d_bug='maxpool', rudc=True):
         print('CRNN_ocr34')
         super(CRNN_ocr34, self).__init__()
         assert imgH % 16 == 0, 'imgH has to be a multiple of 16'
 
-        self.cnn = backbone.make_ocr34()
+        self.cnn = backbone.make_ocr34(in_channels)
         self.rnn = nn.Sequential(
             BidirectionalLSTM(512, nh, nh),
             BidirectionalLSTM(nh, nh, nclass)
@@ -242,14 +113,14 @@ class CRNN_ocr34(nn.Module):
 
 ###########################################################################################################
 class CRNN_res_pp(nn.Module):
-    def __init__(self, imgH, nc, nclass, nh, n_rnn=2, leakyRelu=False, d_bug='maxpool', rudc=True):
+    def __init__(self, imgH, in_channels, nclass, nh, n_rnn=2, leaky_relu=False, d_bug='maxpool', rudc=True):
         print('CRNN_res_pp')
         super(CRNN_res_pp, self).__init__()
         assert imgH % 16 == 0, 'imgH has to be a multiple of 16'
 
         net = torchvision.models.resnet34(pretrained=False)
         l1 = nn.Sequential(
-            nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.Conv2d(in_channels, 32, kernel_size=3, stride=1, padding=1, bias=False),
             nn.BatchNorm2d(32, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
             nn.ReLU(inplace=True),
             nn.Conv2d(32, 32, kernel_size=3, stride=1, padding=1, bias=False),
@@ -302,46 +173,10 @@ class CRNN_res_pp(nn.Module):
         return output
 
 
-###########################################################################################################
-class CRNN_vgg16(nn.Module):
-    def __init__(self, imgH, nc, nclass, nh, n_rnn=2, leakyRelu=False, d_bug='maxpool', rudc=True):
-        print('CRNN_vgg16')
-        super(CRNN_vgg16, self).__init__()
-        assert imgH % 16 == 0, 'imgH has to be a multiple of 16'
-
-        net = torchvision.models.vgg16_bn(pretrained=False)
-        cnn = net.features
-        cnn[6] = nn.MaxPool2d(kernel_size=(2, 1), stride=(2, 1), padding=0, dilation=1, ceil_mode=False)
-        cnn[23] = nn.MaxPool2d(kernel_size=(2, 1), stride=(2, 1), padding=0, dilation=1, ceil_mode=False)
-        cnn[33] = nn.MaxPool2d(kernel_size=(2, 1), stride=(2, 1), padding=0, dilation=1, ceil_mode=False)
-
-        self.cnn = cnn
-        self.rnn = nn.Sequential(
-            BidirectionalLSTM(512, nh, nh),
-            BidirectionalLSTM(nh, nh, nclass)
-        )
-
-    def forward(self, input):
-        # conv features
-        conv = self.cnn(input)
-        b, c, h, w = conv.size()
-        assert h == 1, "the height of conv must be 1"
-        conv = conv.squeeze(2)
-        conv = conv.permute(2, 0, 1)  # [w, b, c]
-
-        # rnn features
-        output = self.rnn(conv)
-
-        # add log_softmax to converge output
-        # output = F.log_softmax(output, dim=2)
-
-        return output
-
-
 ######################################################################################################
 import copy
 class CRNN_m(nn.Module):
-    def __init__(self, imgH, nc, nclass, nh, n_rnn=2, leakyRelu=False, d_bug = 'maxpool', rudc=True):
+    def __init__(self, imgH, in_channels, nclass, nh, n_rnn=2, leaky_relu=False, d_bug = 'maxpool', rudc=True):
         super(CRNN_m, self).__init__()
         assert imgH % 16 == 0, 'imgH has to be a multiple of 16'
 
@@ -350,11 +185,7 @@ class CRNN_m(nn.Module):
         net = torchvision.models.resnet34(pretrained=False)
         cnn = nn.Sequential(*(list(net.children())[: -2]))
         # 修改网络层
-        if rudc:
-            cnn[0] = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
-            print('============> rudc')
-        else:
-            cnn[0].stride = (1, 1)
+        cnn[0] = nn.Conv2d(in_channels, 64, kernel_size=7, stride=1, padding=3, bias=False)
         cnn[3] = nn.MaxPool2d(kernel_size=1, stride=1, padding=0)
         cnn[4][1] = copy.deepcopy(cnn[5][0])
         cnn[4][1].conv1 = nn.Conv2d(64, 64, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False)
@@ -406,14 +237,14 @@ class CRNN_m(nn.Module):
 
 ###########################################################################################################
 class CRNN_res50_pp(nn.Module):
-    def __init__(self, imgH, nc, nclass, nh, n_rnn=2, leakyRelu=False, d_bug='maxpool', rudc=True):
+    def __init__(self, imgH, in_channels, nclass, nh, n_rnn=2, leaky_relu=False, d_bug='maxpool', rudc=True):
         print('CRNN_res50_pp')
         super(CRNN_res50_pp, self).__init__()
         assert imgH % 16 == 0, 'imgH has to be a multiple of 16'
 
         net = torchvision.models.resnet50(pretrained=False)
         l1 = nn.Sequential(
-            nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.Conv2d(in_channels, 32, kernel_size=3, stride=1, padding=1, bias=False),
             nn.BatchNorm2d(32, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
             nn.ReLU(inplace=True),
             nn.Conv2d(32, 32, kernel_size=3, stride=1, padding=1, bias=False),
@@ -457,7 +288,7 @@ class CRNN_res50_pp(nn.Module):
 
 ###########################################################################################################
 class CRNN_res50_1(nn.Module):
-    def __init__(self, imgH, nc, nclass, nh, n_rnn=2, leakyRelu=False, d_bug='maxpool', rudc=True):
+    def __init__(self, imgH, in_channels, nclass, nh, n_rnn=2, leaky_relu=False, d_bug='maxpool', rudc=True):
         print('CRNN_res50_1')
         super(CRNN_res50_1, self).__init__()
         assert imgH % 16 == 0, 'imgH has to be a multiple of 16'
@@ -474,7 +305,7 @@ class CRNN_res50_1(nn.Module):
         new_1.downsample[1] = nn.BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
 
         l1 = nn.Sequential(
-            nn.Conv2d(3, 32, kernel_size=7, stride=1, padding=3, bias=False),
+            nn.Conv2d(in_channels, 32, kernel_size=7, stride=1, padding=3, bias=False),
             nn.BatchNorm2d(32, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
             nn.ReLU(inplace=True),
             new_1

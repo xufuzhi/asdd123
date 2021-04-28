@@ -29,7 +29,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--trainroot', required=True, help='path to dataset')
     parser.add_argument('--valroot', required=True, help='path to dataset')
-    parser.add_argument('--workers', type=int, help='number of data loading workers', default=0)
+    parser.add_argument('--workers', type=int, help='number of data loading workers', default=8)
     parser.add_argument('--batchSize', type=int, default=128, help='input batch size')
     parser.add_argument('--imgH', type=int, default=32, help='the height of the input image to network')
     parser.add_argument('--imgW', type=int, default=128, help='the width of the input image to network')
@@ -60,6 +60,7 @@ if __name__ == '__main__':
     parser.add_argument('--net', type=str, default='CRNN')
     parser.add_argument('--prtnet', action='store_true')
     parser.add_argument('--lr_sch', type=str, default='R')
+    parser.add_argument('--in_channels', type=int, default=3)
     opt = parser.parse_args()
     print(opt)
 
@@ -83,7 +84,7 @@ if __name__ == '__main__':
         alphabet = f.read().strip()
 
     # ### 构建数据集对象
-    dataset_train = dataset.Dataset_lmdb(root=opt.trainroot)
+    dataset_train = dataset.Dataset_lmdb(root=opt.trainroot, in_channels=opt.in_channels)
     assert dataset_train
     if not opt.random_sample:
         sampler = dataset.RandomSequentialSampler(dataset_train, opt.batchSize)
@@ -94,11 +95,15 @@ if __name__ == '__main__':
         shuffle=True, sampler=sampler,
         num_workers=int(opt.workers),
         collate_fn=dataset.AlignCollate(imgH=opt.imgH, imgW=opt.imgW, keep_ratio=opt.keep_ratio))
-    dataset_val = dataset.Dataset_lmdb(root=opt.valroot, transform=dataset.ResizeNormalize((opt.imgW, opt.imgH)))
-    # dataset_val = dataset.Dataset_lmdb(root=opt.valroot)
+    dataset_val = dataset.Dataset_lmdb(root=opt.valroot, in_channels=opt.in_channels)
+    val_loader = torch.utils.data.DataLoader(
+        dataset_val, batch_size=opt.batchSize,
+        shuffle=True, num_workers=int(opt.workers),
+        collate_fn=dataset.AlignCollate(imgH=opt.imgH, imgW=opt.imgW, keep_ratio=opt.keep_ratio))
 
     # 构建网络
-    net_crnn = eval('crnn.' + opt.net)(opt.imgH, 3, len(alphabet) + 1, opt.nh, d_bug=opt.d_bug, rudc=opt.rudc)
+    net_crnn = eval('crnn.' + opt.net)(opt.imgH, opt.in_channels, len(alphabet) + 1, opt.nh, d_bug=opt.d_bug,
+                                       rudc=opt.rudc)
     # net_crnn = crnn.CRNN(opt.imgH, 3, len(alphabet) + 1, opt.nh)
     # net_crnn.apply(weights_init)
     if opt.pretrained != '':
@@ -142,6 +147,7 @@ if __name__ == '__main__':
                 pass
             else:
                 raise ValueError
+
 
     image = torch.empty((opt.batchSize, 3, opt.imgH, opt.imgH), dtype=torch.float32)
     text = torch.empty(opt.batchSize * 5, dtype=torch.int32)
@@ -213,7 +219,7 @@ if __name__ == '__main__':
 
             # ### 验证精度
             if iteration % opt.valInterval == 0:
-                prt_msg = verify.val(net_crnn, dataset_val, ctc_loss, str2label, batchSize=opt.batchSize, max_iter=0,
+                prt_msg = verify.val(net_crnn, val_loader, ctc_loss, str2label, batchSize=opt.batchSize, max_iter=0,
                                      n_display=opt.n_test_disp)
                 print(prt_msg)
                 with open(logfile, 'a', encoding='utf-8') as f:
@@ -221,9 +227,10 @@ if __name__ == '__main__':
 
             # ### 保存权重
             if iteration % opt.saveInterval == 0:
-                torch.save(net_crnn.state_dict(), f'{opt.expr_dir}/netCRNN_{epoch}_{iteration}.pth')
+                torch.save(net_crnn.state_dict(), f'{opt.expr_dir}/netCRNN_{opt.net}_{epoch}_{iteration}.pth')
             # 每2000次保存一次 lastest.pth
             if iteration % 2000 == 0:
-                torch.save(net_crnn.state_dict(), f'{opt.expr_dir}/netCRNN_lastest.pth')
+                torch.save(net_crnn.state_dict(),
+                           os.path.join(opt.expr_dir, f'netCRNN_{opt.net}_{opt.in_channels}c_lastest.pth'))
 
-    torch.save(net_crnn.state_dict(), os.path.join(opt.expr_dir, 'netCRNN_last.pth'))
+    torch.save(net_crnn.state_dict(), os.path.join(opt.expr_dir, f'netCRNN_{opt.net}_{opt.in_channels}c_lastest.pth'))
