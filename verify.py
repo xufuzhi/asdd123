@@ -60,8 +60,11 @@ def val(net, data_loader, criterion, labelConverter, batchSize=64, max_iter=0, n
         for raw_pred, pred, gt in zip(raw_preds, sim_preds, cpu_texts):
             print(f'{raw_pred:<{20}} => {pred:<{20}}, gt: {gt}')
 
-    accuracy = n_correct / float(total_img)
-    return f'Test loss: {loss_avg.val():.3f}, n_correct:{n_correct}, total_img: {total_img}, accuray: {accuracy:.3f}'
+    precision = n_correct / float(total_img)
+    prt_msg = (f'Test loss: {loss_avg.val():.3f}  n_correct:{n_correct}  total_img: {total_img}  '
+                f'precision: {precision:.3f}')
+    vals = {'loss': loss_avg.val(), 'n_correct': n_correct, 'total_img': total_img, 'precision': precision}
+    return vals, prt_msg
 
 
 if __name__ == '__main__':
@@ -70,7 +73,7 @@ if __name__ == '__main__':
     parser.add_argument('--workers', type=int, help='number of data loading workers', default=0)
     parser.add_argument('--batchSize', type=int, default=256, help='input batch size')
     parser.add_argument('--imgH', type=int, default=32, help='the height of the input image to network')
-    parser.add_argument('--imgW', type=int, default=128, help='the width of the input image to network')
+    parser.add_argument('--imgW', type=int, default=100, help='the width of the input image to network')
     parser.add_argument('--imgC', type=int, default=3)
     parser.add_argument('--keep_ratio', action='store_true', help='whether to keep ratio for image resize')
     parser.add_argument('--nh', type=int, default=256, help='size of the lstm hidden state')
@@ -100,8 +103,7 @@ if __name__ == '__main__':
                                                                               keep_ratio=opt.keep_ratio),
                                               num_workers=0)
     # 构建网络
-    # net_crnn = crnn.CRNN(opt.imgH, opt.imgC, len(alphabet) + 1, opt.nh).to(device=device)
-    net_crnn = crnn.CRNN(opt.imgH, opt.imgC, len(alphabet) + 1, opt.nh, d_bug='maxpool', rudc=False).to(device=device)
+    net_crnn = crnn.CRNN(opt.imgH, opt.imgC, len(alphabet) + 1, opt.nh).to(device=device)
     net_crnn.load_state_dict(torch.load(opt.weight))
     # print(net_crnn)
 

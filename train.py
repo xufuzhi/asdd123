@@ -29,25 +29,25 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--trainroot', required=True, help='path to dataset')
     parser.add_argument('--valroot', required=True, help='path to dataset')
-    parser.add_argument('--workers', type=int, help='number of data loading workers', default=8)
+    parser.add_argument('--workers', type=int, help='number of data loading workers', default=0)
     parser.add_argument('--batchSize', type=int, default=128, help='input batch size')
     parser.add_argument('--imgH', type=int, default=32, help='the height of the input image to network')
-    parser.add_argument('--imgW', type=int, default=128, help='the width of the input image to network')
+    parser.add_argument('--imgW', type=int, default=100, help='the width of the input image to network')
     parser.add_argument('--nh', type=int, default=256, help='size of the lstm hidden state')
     parser.add_argument('--nepoch', type=int, default=100, help='number of epochs to train for')
     # TODO(meijieru): epoch -> iter
     parser.add_argument('--cuda', action='store_true', help='enables cuda')
     parser.add_argument('--ngpu', type=int, default=1, help='number of GPUs to use')
-    # parser.add_argument('--pretrained', default='weights/lmdb_5w/netCRNN_lastest.pth', help="path to pretrained model (to continue training)")
+    # parser.add_argument('--pretrained', default='weights/lol_/netCRNN_CRNN_1c_lastest.pth', help="path to pretrained model (to continue training)")
     parser.add_argument('--pretrained', default='', help="path to pretrained model (to continue training)")
-    parser.add_argument('--alphabet', type=str, default='./data/en.alphabet')
-    parser.add_argument('--expr_dir', default='weights/lmdb_5w', help='Where to store samples and models')
-    parser.add_argument('--displayInterval', type=int, default=200, help='Interval to be displayed')
+    parser.add_argument('--alphabet', type=str, default='./data/lol.alphabet')
+    parser.add_argument('--expr_dir', default='weights/lol', help='Where to store samples and models')
+    parser.add_argument('--displayInterval', type=int, default=20, help='Interval to be displayed')
     parser.add_argument('--n_test_disp', type=int, default=10, help='Number of samples to display when test')
-    parser.add_argument('--valInterval', type=int, default=2000, help='Interval to be verifyed')
+    parser.add_argument('--valInterval', type=int, default=200, help='Interval to be verifyed')
     parser.add_argument('--saveInterval', type=int, default=100000, help='Interval to be saved')
     parser.add_argument('--lr', type=float, default=0.001, help='learning rate for Critic, not used by adadealta')
-    parser.add_argument('--beta1', type=float, default=0.9, help='beta1 for adam. default=0.5')
+    parser.add_argument('--beta1', type=float, default=0.9, help='beta1 for adam. default=0.9')
     parser.add_argument('--adam', action='store_true', help='Whether to use adam (default is rmsprop)')
     parser.add_argument('--adadelta', action='store_true', help='Whether to use adadelta (default is rmsprop)')
     parser.add_argument('--keep_ratio', action='store_true', help='whether to keep ratio for image resize')
@@ -55,12 +55,12 @@ if __name__ == '__main__':
     parser.add_argument('--random_sample', action='store_true',
                         help='whether to sample the dataset with random sampler')
 
-    parser.add_argument('--d_bug', type=str, default='avgpool')
-    parser.add_argument('--rudc', action='store_false')
-    parser.add_argument('--net', type=str, default='CRNN')
+
+    parser.add_argument('--backbone', type=str, default='ocr7')
     parser.add_argument('--prtnet', action='store_true')
     parser.add_argument('--lr_sch', type=str, default='R')
     parser.add_argument('--in_channels', type=int, default=3)
+    parser.add_argument('--imgaug', action='store_true')
     opt = parser.parse_args()
     print(opt)
 
@@ -94,7 +94,7 @@ if __name__ == '__main__':
         dataset_train, batch_size=opt.batchSize,
         shuffle=True, sampler=sampler,
         num_workers=int(opt.workers),
-        collate_fn=dataset.AlignCollate(imgH=opt.imgH, imgW=opt.imgW, keep_ratio=opt.keep_ratio))
+        collate_fn=dataset.AlignCollate(imgH=opt.imgH, imgW=opt.imgW, keep_ratio=opt.keep_ratio, augment=opt.imgaug))
     dataset_val = dataset.Dataset_lmdb(root=opt.valroot, in_channels=opt.in_channels)
     val_loader = torch.utils.data.DataLoader(
         dataset_val, batch_size=opt.batchSize,
@@ -102,9 +102,7 @@ if __name__ == '__main__':
         collate_fn=dataset.AlignCollate(imgH=opt.imgH, imgW=opt.imgW, keep_ratio=opt.keep_ratio))
 
     # 构建网络
-    net_crnn = eval('crnn.' + opt.net)(opt.imgH, opt.in_channels, len(alphabet) + 1, opt.nh, d_bug=opt.d_bug,
-                                       rudc=opt.rudc)
-    # net_crnn = crnn.CRNN(opt.imgH, 3, len(alphabet) + 1, opt.nh)
+    net_crnn = crnn.CRNN(opt.imgH, opt.in_channels, len(alphabet) + 1, opt.nh, cnn_layer=opt.backbone)
     # net_crnn.apply(weights_init)
     if opt.pretrained != '':
         print('loading pretrained model from %s' % opt.pretrained)
@@ -162,8 +160,8 @@ if __name__ == '__main__':
     # loss Averager
     loss_avg = utils.Averager()
     # ### begin training
-    total_iter = len(train_loader) * opt.nepoch
-    iteration = 0
+    iteration, total_iter = 0, len(train_loader) * opt.nepoch
+    best_precision = 0
     for epoch in range(opt.nepoch):
         for i, data in enumerate(train_loader, start=1):
             iteration += 1
@@ -192,7 +190,7 @@ if __name__ == '__main__':
 
             # ### 计算这个批次精度
             if iteration % opt.displayInterval == 0:
-                aa = torch.ones(1).detach
+                # aa = torch.ones(1).detach
                 preds_v = preds.detach()
                 preds_size_v = preds_size.detach()
 
@@ -204,8 +202,8 @@ if __name__ == '__main__':
                 for pred, target in zip(sim_preds, cpu_texts):
                     if pred == target.lower():
                         n_correct += 1
-                accuracy = n_correct / float(batch_size)
-                print(f'acc: {accuracy}')
+                precision = n_correct / float(batch_size)
+                print(f'precision: {precision}')
 
             # ### 打印信息
             if iteration % opt.displayInterval == 0:
@@ -219,18 +217,25 @@ if __name__ == '__main__':
 
             # ### 验证精度
             if iteration % opt.valInterval == 0:
-                prt_msg = verify.val(net_crnn, val_loader, ctc_loss, str2label, batchSize=opt.batchSize, max_iter=0,
-                                     n_display=opt.n_test_disp)
+                vals, prt_msg = verify.val(net_crnn, val_loader, ctc_loss, str2label, batchSize=opt.batchSize,
+                                           max_iter=0, n_display=opt.n_test_disp)
+                if vals['precision'] > best_precision:
+                    best_precision = vals['precision']
+                    torch.save(net_crnn.state_dict(),
+                               os.path.join(opt.expr_dir, f'netCRNN_{opt.backbone}_{opt.in_channels}c_best.pth'))
+                prt_msg += f'    best_precision:{best_precision:.3f}'
                 print(prt_msg)
                 with open(logfile, 'a', encoding='utf-8') as f:
                     f.writelines(prt_msg + '\n')
 
             # ### 保存权重
             if iteration % opt.saveInterval == 0:
-                torch.save(net_crnn.state_dict(), f'{opt.expr_dir}/netCRNN_{opt.net}_{epoch}_{iteration}.pth')
+                torch.save(net_crnn.state_dict(), f'{opt.expr_dir}/netCRNN_{opt.backbone}_{epoch}_{iteration}.pth')
             # 每2000次保存一次 lastest.pth
             if iteration % 2000 == 0:
                 torch.save(net_crnn.state_dict(),
-                           os.path.join(opt.expr_dir, f'netCRNN_{opt.net}_{opt.in_channels}c_lastest.pth'))
+                           os.path.join(opt.expr_dir, f'netCRNN_{opt.backbone}_{opt.in_channels}c_lastest.pth'))
 
-    torch.save(net_crnn.state_dict(), os.path.join(opt.expr_dir, f'netCRNN_{opt.net}_{opt.in_channels}c_lastest.pth'))
+    torch.save(net_crnn.state_dict(), os.path.join(opt.expr_dir, f'netCRNN_{opt.backbone}_{opt.in_channels}c_lastest.pth'))
+
+

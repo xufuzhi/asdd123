@@ -91,12 +91,11 @@ def read_text(path):
 
 if __name__ == '__main__':
 
-    m = 'from name'     # 'from name'：标签从图片名字上获取。 'from txt': 标签从标签文件获取
+    m = 'from txt'     # 'from name'：标签从图片名字上获取。 'from txt': 标签从标签文件获取
 
-    outputPath = '../data/lmdb_1w'     # lmdb 输出目录
+    outputPath = '../data/lol/lol_val'     # lmdb 输出目录
     # 训练图片路径，标签是txt格式，名字跟图片名字要一致，如123.jpg对应标签需要是123.txt
-    # path = '../data/*.jpg'
-    path = '/home/xfz/Projects/PycharmProjects/TextRecognitionDataGenerator-master/trdg/out'    # 标签文件， 当m='from name'时候为图片文件夹位置
+    path = '/home/xfz/Projects/PycharmProjects/TextRecognitionDataGenerator-master/trdg/out_comm/val/labels.txt'    # 标签文件， 当m='from name'时候为图片文件夹位置
 
     imgPaths = []
     labellist = []

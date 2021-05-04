@@ -78,7 +78,7 @@ def make_ocr7(in_channels, leaky_relu=False):
             cnn.add_module('relu{0}'.format(i), nn.ReLU(True))
 
     cnn = nn.Sequential()
-    conv_relu(0)
+    conv_relu(0, True)
     cnn.add_module('pooling{0}'.format(0), nn.MaxPool2d([2, 2], [2, 1]))  # 64x16x64
     conv_relu(1)
     cnn.add_module('pooling{0}'.format(1), nn.MaxPool2d(2, 2))  # 128x8x32
@@ -128,6 +128,31 @@ def make_ocr10(in_channels, leaky_relu=False):
     conv_relu(8, True)
     cnn.add_module('pooling{0}'.format(3), nn.MaxPool2d((2, 2), (2, 2), (0, 1)))
     conv_relu(9)
+
+    return cnn
+
+
+def make_res_pp(in_channels=3):
+    net = torchvision.models.resnet34(pretrained=False)
+    l1 = nn.Sequential(
+        nn.Conv2d(in_channels, 32, kernel_size=3, stride=1, padding=1, bias=False),
+        nn.BatchNorm2d(32, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
+        nn.ReLU(inplace=True),
+        nn.Conv2d(32, 32, kernel_size=3, stride=1, padding=1, bias=False),
+        nn.BatchNorm2d(32, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
+        nn.ReLU(inplace=True),
+        nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1, bias=False),
+    )
+    cnn = nn.Sequential(*(list(net.children())[: -2]))
+    # 修改网络层
+    cnn[0] = l1
+    cnn[5][0].conv1.stride = (2, 1)
+    cnn[5][0].downsample[0].stride = (2, 1)
+    cnn[6][0].conv1.stride = (2, 1)
+    cnn[6][0].downsample[0].stride = (2, 1)
+    cnn[7][0].conv1.stride = (2, 1)
+    cnn[7][0].downsample[0].stride = (2, 1)
+    cnn.add_module('maxPooling', nn.MaxPool2d(kernel_size=2, stride=2, padding=0))
 
     return cnn
 
